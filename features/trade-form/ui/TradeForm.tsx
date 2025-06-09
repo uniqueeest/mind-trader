@@ -19,6 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { MARKET_CONFIG, type Market, type Currency } from '@/shared/types';
 
 interface TradeFormData {
   symbol: string;
@@ -27,6 +28,8 @@ interface TradeFormData {
   price: string;
   quantity: string;
   thoughts: string;
+  market: 'KR' | 'US';
+  currency: 'KRW' | 'USD';
 }
 
 interface TradeFormProps {
@@ -42,6 +45,8 @@ export function TradeForm({ onSubmit, isLoading = false }: TradeFormProps) {
     price: '',
     quantity: '',
     thoughts: '',
+    market: 'KR',
+    currency: 'KRW',
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -56,6 +61,8 @@ export function TradeForm({ onSubmit, isLoading = false }: TradeFormProps) {
         price: '',
         quantity: '',
         thoughts: '',
+        market: 'KR',
+        currency: 'KRW',
       });
     } catch (error) {
       console.error('매매 기록 저장 실패:', error);
@@ -78,6 +85,19 @@ export function TradeForm({ onSubmit, isLoading = false }: TradeFormProps) {
     }));
   };
 
+  const handleMarketChange = (value: Market) => {
+    const currency = MARKET_CONFIG[value].currency;
+    setFormData((prev) => ({
+      ...prev,
+      market: value,
+      currency: currency,
+      symbol: '', // 시장 변경 시 종목명 리셋
+      price: '', // 가격도 리셋 (통화가 바뀌므로)
+    }));
+  };
+
+  const currentMarketConfig = MARKET_CONFIG[formData.market];
+
   return (
     <Card className="w-full max-w-2xl mx-auto">
       <CardHeader>
@@ -88,16 +108,35 @@ export function TradeForm({ onSubmit, isLoading = false }: TradeFormProps) {
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-6">
+          {/* 시장 선택 */}
+          <div className="space-y-2">
+            <Label>거래 시장</Label>
+            <Select value={formData.market} onValueChange={handleMarketChange}>
+              <SelectTrigger>
+                <SelectValue placeholder="거래 시장을 선택하세요" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="KR">🇰🇷 한국 시장 (KRW)</SelectItem>
+                <SelectItem value="US">🇺🇸 미국 시장 (USD)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
           {/* 종목명 */}
           <div className="space-y-2">
             <Label htmlFor="symbol">종목명</Label>
             <Input
               id="symbol"
-              placeholder="예: 삼성전자, AAPL, TSLA"
+              placeholder={`예: ${currentMarketConfig.examples.join(', ')}`}
               value={formData.symbol}
               onChange={handleChange('symbol')}
               required
             />
+            <p className="text-xs text-gray-500">
+              {formData.market === 'KR'
+                ? '한국 종목명을 입력하세요 (한글 또는 영문)'
+                : '미국 종목 티커를 입력하세요 (예: AAPL, TSLA)'}
+            </p>
           </div>
 
           {/* 매수/매도 구분 */}
@@ -128,16 +167,24 @@ export function TradeForm({ onSubmit, isLoading = false }: TradeFormProps) {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="price">매매 가격</Label>
+              <Label htmlFor="price">
+                매매 가격 ({currentMarketConfig.symbol})
+              </Label>
               <Input
                 id="price"
                 type="number"
-                step="0.01"
-                placeholder="10000"
+                step={currentMarketConfig.priceStep}
+                min={currentMarketConfig.minPrice}
+                placeholder={formData.market === 'KR' ? '50000' : '150.25'}
                 value={formData.price}
                 onChange={handleChange('price')}
                 required
               />
+              <p className="text-xs text-gray-500">
+                {formData.market === 'KR'
+                  ? '원화 단위로 입력 (예: 50000)'
+                  : '달러 단위로 입력 (예: 150.25)'}
+              </p>
             </div>
 
             <div className="space-y-2">

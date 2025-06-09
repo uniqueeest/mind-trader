@@ -13,8 +13,14 @@ import {
   getKoreanDay,
   type GroupedTrade,
 } from '@/shared/utils/dateUtils';
+import {
+  formatCurrency,
+  MARKET_CONFIG,
+  type Currency,
+  type Market,
+} from '@/shared/types';
 
-// 임시 타입 정의 (나중에 엔티티에서 가져올 예정)
+// Trade 타입 정의 (통화 정보 포함)
 interface Trade {
   id: string;
   symbol: string;
@@ -23,6 +29,8 @@ interface Trade {
   price: number;
   quantity: number;
   thoughts: string;
+  market: Market;
+  currency: Currency;
   emotionTags: string[];
   profitLoss?: number; // 수익/손실
 }
@@ -53,9 +61,13 @@ function TradeItem({ trade }: { trade: Trade }) {
               </Badge>
             </div>
             <div className="text-sm text-gray-600">
-              <span>가격: {trade.price.toLocaleString()}원</span>
+              <span>가격: {formatCurrency(trade.price, trade.currency)}</span>
               <span className="mx-2">•</span>
               <span>수량: {trade.quantity}주</span>
+              <span className="mx-2">•</span>
+              <span className="text-xs bg-gray-100 px-2 py-1 rounded">
+                {MARKET_CONFIG[trade.market].label}
+              </span>
             </div>
           </div>
 
@@ -63,12 +75,11 @@ function TradeItem({ trade }: { trade: Trade }) {
           {trade.profitLoss !== undefined && (
             <div
               className={`text-right ${
-                trade.profitLoss >= 0 ? 'text-red-600' : 'text-blue-600'
+                trade.profitLoss >= 0 ? 'text-green-600' : 'text-red-600'
               }`}
             >
               <div className="text-base font-semibold">
-                {trade.profitLoss >= 0 ? '+' : ''}
-                {trade.profitLoss.toLocaleString()}원
+                {formatCurrency(trade.profitLoss, trade.currency)}
               </div>
               <div className="text-xs">
                 ({trade.profitLoss >= 0 ? '+' : ''}
@@ -113,6 +124,23 @@ function TradeItem({ trade }: { trade: Trade }) {
 
 // 날짜별 그룹 헤더 컴포넌트
 function DateGroupHeader({ group }: { group: GroupedTrade }) {
+  // 통화별 총액 계산
+  const totalByKRW = group.trades
+    .filter((trade) => trade.currency === 'KRW')
+    .reduce((sum, trade) => sum + trade.price * trade.quantity, 0);
+
+  const totalByUSD = group.trades
+    .filter((trade) => trade.currency === 'USD')
+    .reduce((sum, trade) => sum + trade.price * trade.quantity, 0);
+
+  const profitByKRW = group.trades
+    .filter((trade) => trade.currency === 'KRW')
+    .reduce((sum, trade) => sum + (trade.profitLoss || 0), 0);
+
+  const profitByUSD = group.trades
+    .filter((trade) => trade.currency === 'USD')
+    .reduce((sum, trade) => sum + (trade.profitLoss || 0), 0);
+
   return (
     <div className="flex justify-between items-center w-full">
       <div className="flex items-center gap-3">
@@ -131,19 +159,37 @@ function DateGroupHeader({ group }: { group: GroupedTrade }) {
       </div>
 
       <div className="flex items-center gap-4 text-sm">
-        <div className="text-gray-600">
-          거래대금: {group.totalVolume.toLocaleString()}원
+        {/* 통화별 거래대금 표시 */}
+        <div className="text-gray-600 space-x-2">
+          {totalByKRW > 0 && (
+            <span>KRW: {formatCurrency(totalByKRW, 'KRW')}</span>
+          )}
+          {totalByUSD > 0 && (
+            <span>USD: {formatCurrency(totalByUSD, 'USD')}</span>
+          )}
         </div>
-        {group.totalProfit !== 0 && (
-          <div
-            className={`font-semibold ${
-              group.totalProfit >= 0 ? 'text-red-600' : 'text-blue-600'
-            }`}
-          >
-            {group.totalProfit >= 0 ? '+' : ''}
-            {group.totalProfit.toLocaleString()}원
-          </div>
-        )}
+
+        {/* 통화별 수익/손실 표시 */}
+        <div className="space-x-2">
+          {profitByKRW !== 0 && (
+            <span
+              className={`font-semibold ${
+                profitByKRW >= 0 ? 'text-green-600' : 'text-red-600'
+              }`}
+            >
+              {formatCurrency(profitByKRW, 'KRW')}
+            </span>
+          )}
+          {profitByUSD !== 0 && (
+            <span
+              className={`font-semibold ${
+                profitByUSD >= 0 ? 'text-green-600' : 'text-red-600'
+              }`}
+            >
+              {formatCurrency(profitByUSD, 'USD')}
+            </span>
+          )}
+        </div>
       </div>
     </div>
   );
