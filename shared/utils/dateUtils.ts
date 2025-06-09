@@ -4,6 +4,7 @@ import 'dayjs/locale/ko'; // 한국어 로케일
 import relativeTime from 'dayjs/plugin/relativeTime';
 import isSameOrBefore from 'dayjs/plugin/isSameOrBefore';
 import isSameOrAfter from 'dayjs/plugin/isSameOrAfter';
+import { type Currency, type Market } from '@/shared/types';
 
 // 플러그인 등록
 dayjs.extend(relativeTime);
@@ -19,6 +20,8 @@ interface Trade {
   price: number;
   quantity: number;
   thoughts: string;
+  market: Market;
+  currency: Currency;
   emotionTags: string[];
   profitLoss?: number;
 }
