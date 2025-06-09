@@ -1,0 +1,186 @@
+// Prisma 스키마 파일
+// 마인드 트레이더 프로젝트용 데이터베이스 스키마
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// 사용자 테이블 (NextAuth 기본 스키마 확장)
+model Account {
+  id                String  @id @default(cuid())
+  userId            String  @map("user_id")
+  type              String
+  provider          String
+  providerAccountId String  @map("provider_account_id")
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique @map("session_token")
+  userId       String   @map("user_id")
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime? @map("email_verified")
+  image         String?
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  // 관계
+  accounts Account[]
+  sessions Session[]
+  trades   Trade[]
+  settings UserSettings?
+
+  @@map("users")
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verificationtokens")
+}
+
+// 매매 기록 테이블 (핵심 엔티티)
+model Trade {
+  id          String    @id @default(cuid())
+  userId      String    @map("user_id")
+  
+  // 기본 매매 정보
+  symbol      String    // 종목명
+  type        TradeType // 'BUY' | 'SELL'
+  date        DateTime  // 매매 날짜
+  price       Float     // 매매 가격
+  quantity    Int       // 수량
+  currency    Currency  @default(KRW) // 통화 (KRW/USD)
+  market      Market    @default(KR)  // 시장 (KR/US)
+  
+  // 심리 분석 데이터
+  thoughts    String?   // "매매의 순간, 나의 생각은?"
+  emotionTags String?   // JSON 배열로 저장 ["FOMO", "기술적분석"]
+  
+  // AI 분석 결과 (추후 구현)
+  aiAnalysis  String?   // AI가 분석한 감정/패턴
+  confidence  Float?    // AI 분석 신뢰도 (0-1)
+  
+  // 시장 데이터 (매매 당시)
+  marketKospi   Float? // 코스피 지수
+  marketNasdaq  Float? // 나스닥 지수
+  marketSp500   Float? // S&P 500 지수
+  
+  // 수익률 계산용 (추후 구현)
+  currentPrice  Float? // 현재 가격 (자동 업데이트)
+  profitLoss    Float? // 손익 (자동 계산)
+  profitRate    Float? // 수익률 (자동 계산)
+  
+  // 메타데이터
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // 관계
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, date])
+  @@index([userId, symbol])
+  @@map("trades")
+}
+
+// 감정 태그 마스터 테이블 (선택적)
+model EmotionTag {
+  id          String @id @default(cuid())
+  name        String @unique // "FOMO", "기술적분석", "공포"
+  category    String // "감정", "분석방법", "시장상황"
+  description String? // 태그 설명
+  color       String? // UI 표시용 컬러코드
+  
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("emotion_tags")
+}
+
+// 시장 데이터 히스토리 테이블 (캐싱용)
+model MarketData {
+  id       String   @id @default(cuid())
+  date     DateTime @unique // 날짜 (YYYY-MM-DD)
+  
+  // 주요 지수
+  kospi    Float?   // 코스피
+  nasdaq   Float?   // 나스닥 종합
+  sp500    Float?   // S&P 500
+  dollar   Float?   // 원/달러 환율
+  
+  // 메타데이터
+  source    String?  // 데이터 소스 ("yahoo", "alpha_vantage")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("market_data")
+}
+
+// 사용자 설정 테이블 (추후 확장용)
+model UserSettings {
+  id     String @id @default(cuid())
+  userId String @unique @map("user_id")
+  
+  // 표시 설정
+  timezone       String @default("Asia/Seoul")
+  currency       String @default("KRW")
+  dateFormat     String @default("YYYY-MM-DD")
+  
+  // 알림 설정
+  emailNotifications    Boolean @default(true)
+  weeklyReport         Boolean @default(true)
+  
+  // AI 분석 설정
+  autoAnalyze          Boolean @default(true)
+  analysisLanguage     String  @default("ko")
+  
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_settings")
+}
+
+// Enum 정의
+enum TradeType {
+  BUY
+  SELL
+}
+
+enum Currency {
+  KRW // 한국 원화
+  USD // 미국 달러
+}
+
+enum Market {
+  KR  // 한국 시장 (KOSPI, KOSDAQ)
+  US  // 미국 시장 (NASDAQ, NYSE)
+} 

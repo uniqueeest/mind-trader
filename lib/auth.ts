@@ -1,5 +1,7 @@
 import { NextAuthOptions } from 'next-auth';
 import GoogleProvider from 'next-auth/providers/google';
+import { PrismaAdapter } from '@auth/prisma-adapter';
+import { prisma } from '@/lib/prisma';
 
 // NextAuth 타입 확장
 declare module 'next-auth' {
@@ -14,6 +16,7 @@ declare module 'next-auth' {
 }
 
 export const authOptions: NextAuthOptions = {
+  adapter: PrismaAdapter(prisma),
   providers: [
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID!,
@@ -24,21 +27,15 @@ export const authOptions: NextAuthOptions = {
     signIn: '/auth/signin',
   },
   callbacks: {
-    async session({ session, token }) {
-      // 세션에 사용자 ID 추가
-      if (session.user && token.sub) {
-        session.user.id = token.sub;
+    async session({ session, user }) {
+      // Prisma 어댑터 사용 시 user 객체에서 ID 가져오기
+      if (session.user && user) {
+        session.user.id = user.id;
       }
       return session;
     },
-    async jwt({ token, user }) {
-      if (user) {
-        token.sub = user.id;
-      }
-      return token;
-    },
   },
   session: {
-    strategy: 'jwt',
+    strategy: 'database',
   },
 };
