@@ -7,11 +7,14 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "db:seed": "DATABASE_URL=\"file:./dev.db\" npx tsx prisma/seed.ts",
+    "db:studio": "DATABASE_URL=\"file:./dev.db\" npx prisma studio"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.9.1",
     "@hookform/resolvers": "5.1.0",
+    "@prisma/client": "^6.9.0",
     "@radix-ui/react-accordion": "^1.2.11",
     "@radix-ui/react-label": "2.1.7",
     "@radix-ui/react-select": "2.2.5",
@@ -22,6 +25,7 @@
     "lucide-react": "0.513.0",
     "next": "15.3.3",
     "next-auth": "^4.24.11",
+    "prisma": "^6.9.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-hook-form": "7.57.0",
@@ -34,6 +38,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "tailwindcss": "^4",
+    "tsx": "^4.19.4",
     "tw-animate-css": "1.3.4",
     "typescript": "^5"
   }
