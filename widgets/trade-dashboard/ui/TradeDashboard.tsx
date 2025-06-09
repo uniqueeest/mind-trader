@@ -13,17 +13,34 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
+import { formatCurrency, type Currency, type Market } from '@/shared/types';
 
-// 임시 타입 정의
-interface TradeFormData {
+// API 응답 타입 정의
+interface ApiTrade {
+  id: string;
+  userId: string;
   symbol: string;
   type: 'BUY' | 'SELL';
-  date: string;
-  price: string;
-  quantity: string;
-  thoughts: string;
+  date: string; // ISO 날짜 문자열
+  price: number;
+  quantity: number;
+  thoughts: string | null;
+  market: Market;
+  currency: Currency;
+  emotionTags: string | null; // JSON 문자열
+  aiAnalysis: string | null;
+  confidence: number | null;
+  marketKospi: number | null;
+  marketNasdaq: number | null;
+  marketSp500: number | null;
+  currentPrice: number | null;
+  profitLoss: number | null;
+  profitRate: number | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
+// UI에서 사용할 Trade 타입
 interface Trade {
   id: string;
   symbol: string;
@@ -32,8 +49,22 @@ interface Trade {
   price: number;
   quantity: number;
   thoughts: string;
+  market: Market;
+  currency: Currency;
   emotionTags: string[];
   profitLoss?: number;
+}
+
+// TradeForm 데이터 타입
+interface TradeFormData {
+  symbol: string;
+  type: 'BUY' | 'SELL';
+  date: string;
+  price: string;
+  quantity: string;
+  thoughts: string;
+  market: Market;
+  currency: Currency;
 }
 
 export function TradeDashboard() {
@@ -42,6 +73,8 @@ export function TradeDashboard() {
   const [showForm, setShowForm] = useState(false);
   const [trades, setTrades] = useState<Trade[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // 인증되지 않은 사용자를 로그인 페이지로 리다이렉트
   useEffect(() => {
@@ -51,160 +84,111 @@ export function TradeDashboard() {
     }
   }, [status, router]);
 
-  // 임시 데모 데이터
-  useEffect(() => {
-    if (session) {
-      // 실제로는 API에서 사용자별 데이터를 가져올 예정
-      const today = new Date().toISOString().split('T')[0];
-      const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000)
-        .toISOString()
-        .split('T')[0];
+  // 매매 기록 불러오기
+  const fetchTrades = async () => {
+    if (!session?.user) return;
 
-      const demoTrades: Trade[] = [
-        // 오늘 거래 (TODAY 배지 테스트용)
-        {
-          id: '7',
-          symbol: '카카오',
-          type: 'BUY',
-          date: today,
-          price: 45000,
-          quantity: 20,
-          thoughts: '메타버스 진출 소식에 급매수. AI 챗봇 도입으로 성장 기대.',
-          emotionTags: ['뉴스반응', '메타버스'],
-          profitLoss: 15000,
-        },
-        {
-          id: '8',
-          symbol: '네이버',
-          type: 'SELL',
-          date: today,
-          price: 180000,
-          quantity: 3,
-          thoughts: '수익 실현. 목표가 도달해서 일부 매도.',
-          emotionTags: ['수익실현', '목표달성'],
-          profitLoss: 25000,
-        },
-        // 어제 거래 (어제 배지 테스트용)
-        {
-          id: '9',
-          symbol: 'LG에너지솔루션',
-          type: 'BUY',
-          date: yesterday,
-          price: 400000,
-          quantity: 2,
-          thoughts: '2차전지 시장 확대 기대. ESG 투자 트렌드 반영.',
-          emotionTags: ['ESG', '2차전지'],
-          profitLoss: 60000,
-        },
-        // 기존 데이터들
-        {
-          id: '1',
-          symbol: '삼성전자',
-          type: 'BUY',
-          date: '2024-01-15',
-          price: 75000,
-          quantity: 10,
-          thoughts:
-            '반도체 업황 회복 기대감에 매수했다. 차트상 지지선 터치 후 반등 구간으로 보임.',
-          emotionTags: ['기술적분석', '기대감'],
-          profitLoss: 50000,
-        },
-        {
-          id: '2',
-          symbol: 'SK하이닉스',
-          type: 'BUY',
-          date: '2024-01-15',
-          price: 120000,
-          quantity: 5,
-          thoughts: '삼성전자와 함께 반도체 업종 동반 매수. 메모리 반등 기대.',
-          emotionTags: ['동조효과', '기대감'],
-          profitLoss: 30000,
-        },
-        {
-          id: '3',
-          symbol: 'AAPL',
-          type: 'BUY',
-          date: '2024-01-10',
-          price: 150,
-          quantity: 5,
-          thoughts:
-            '애플 실적 발표 전에 급매수. 놓칠까봐 두려워서 시장가로 샀다.',
-          emotionTags: ['FOMO', '공포'],
-          profitLoss: -25000,
-        },
-        {
-          id: '4',
-          symbol: 'TSLA',
-          type: 'SELL',
-          date: '2024-01-10',
-          price: 200,
-          quantity: 3,
-          thoughts: '일론 머스크 트위터 보고 급매도. 감정적으로 판단했다.',
-          emotionTags: ['감정적', '뉴스반응'],
-          profitLoss: -15000,
-        },
-        {
-          id: '5',
-          symbol: 'NFLX',
-          type: 'BUY',
-          date: '2024-01-08',
-          price: 450,
-          quantity: 2,
-          thoughts: '신작 드라마 화제성이 좋아서 매수. 구독자 증가 기대.',
-          emotionTags: ['뉴스반응', '희망적'],
-          profitLoss: 40000,
-        },
-        {
-          id: '6',
-          symbol: 'NVDA',
-          type: 'BUY',
-          date: '2024-01-08',
-          price: 500,
-          quantity: 4,
-          thoughts:
-            'AI 열풍으로 급등. 기술적 분석보다는 시장 분위기를 따라갔다.',
-          emotionTags: ['시장분위기', 'AI테마'],
-          profitLoss: 80000,
-        },
-      ];
-      setTrades(demoTrades);
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch('/api/trades');
+
+      if (!response.ok) {
+        throw new Error('매매 기록을 불러오는데 실패했습니다');
+      }
+
+      const data = await response.json();
+
+      // API 응답을 UI용 타입으로 변환
+      const convertedTrades: Trade[] = data.trades.map(
+        (apiTrade: ApiTrade) => ({
+          id: apiTrade.id,
+          symbol: apiTrade.symbol,
+          type: apiTrade.type,
+          date: apiTrade.date.split('T')[0], // YYYY-MM-DD 형식으로 변환
+          price: apiTrade.price,
+          quantity: apiTrade.quantity,
+          thoughts: apiTrade.thoughts || '',
+          market: apiTrade.market,
+          currency: apiTrade.currency,
+          emotionTags: apiTrade.emotionTags
+            ? JSON.parse(apiTrade.emotionTags)
+            : [],
+          profitLoss: apiTrade.profitLoss || undefined,
+        })
+      );
+
+      setTrades(convertedTrades);
+    } catch (error) {
+      console.error('매매 기록 조회 실패:', error);
+      setError(
+        error instanceof Error
+          ? error.message
+          : '알 수 없는 오류가 발생했습니다'
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // 컴포넌트 마운트 시 및 세션 변경 시 데이터 로드
+  useEffect(() => {
+    if (session?.user) {
+      fetchTrades();
     }
   }, [session]);
 
+  // 새 매매 기록 저장
   const handleSubmitTrade = async (formData: TradeFormData) => {
-    setIsLoading(true);
+    setIsSubmitting(true);
+    setError(null);
 
     try {
-      // TODO: 실제 API 호출로 대체 예정
+      const response = await fetch('/api/trades', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || '매매 기록 저장에 실패했습니다');
+      }
+
+      const data = await response.json();
+
+      // 새로운 매매 기록을 목록에 추가
       const newTrade: Trade = {
-        id: Date.now().toString(),
-        symbol: formData.symbol,
-        type: formData.type,
-        date: formData.date,
-        price: parseFloat(formData.price),
-        quantity: parseInt(formData.quantity),
-        thoughts: formData.thoughts,
-        emotionTags: ['분석중'], // TODO: AI 분석 결과로 대체
-        profitLoss: undefined,
+        id: data.trade.id,
+        symbol: data.trade.symbol,
+        type: data.trade.type,
+        date: data.trade.date.split('T')[0],
+        price: data.trade.price,
+        quantity: data.trade.quantity,
+        thoughts: data.trade.thoughts || '',
+        market: data.trade.market,
+        currency: data.trade.currency,
+        emotionTags: data.trade.emotionTags
+          ? JSON.parse(data.trade.emotionTags)
+          : [],
+        profitLoss: data.trade.profitLoss || undefined,
       };
 
       setTrades((prev) => [newTrade, ...prev]);
       setShowForm(false);
 
-      // TODO: AI 감성 분석 API 호출
-      setTimeout(() => {
-        setTrades((prev) =>
-          prev.map((trade) =>
-            trade.id === newTrade.id
-              ? { ...trade, emotionTags: ['희망적'] } // 임시 태그
-              : trade
-          )
-        );
-      }, 2000);
+      // TODO: 백그라운드에서 AI 감성 분석 실행
+      // analyzeTradeEmotion(newTrade.id);
     } catch (error) {
       console.error('매매 기록 저장 실패:', error);
+      setError(
+        error instanceof Error ? error.message : '매매 기록 저장에 실패했습니다'
+      );
     } finally {
-      setIsLoading(false);
+      setIsSubmitting(false);
     }
   };
 
@@ -212,131 +196,171 @@ export function TradeDashboard() {
     signOut({ callbackUrl: '/auth/signin' });
   };
 
-  // 로딩 상태
+  // 로딩 중일 때 표시
   if (status === 'loading') {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4 flex items-center justify-center">
         <div className="text-center">
-          <div className="text-6xl mb-4">🧠</div>
-          <div className="text-xl text-gray-600">로딩 중...</div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">로딩 중...</p>
         </div>
       </div>
     );
   }
 
-  // 인증되지 않은 상태
-  if (status === 'unauthenticated') {
-    return null; // 리다이렉트 처리 중
+  // 인증되지 않은 경우 리다이렉트 대기
+  if (!session) {
+    return null;
   }
 
+  const totalTrades = trades.length;
+
+  // 통화별 수익/손실 계산
+  const profitByKRW = trades
+    .filter((trade) => trade.currency === 'KRW')
+    .reduce((sum, trade) => sum + (trade.profitLoss || 0), 0);
+  const profitByUSD = trades
+    .filter((trade) => trade.currency === 'USD')
+    .reduce((sum, trade) => sum + (trade.profitLoss || 0), 0);
+  const recentEmotionTags = trades
+    .slice(0, 10)
+    .flatMap((trade) => trade.emotionTags)
+    .reduce((acc, tag) => {
+      acc[tag] = (acc[tag] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+  const topEmotionTag =
+    Object.entries(recentEmotionTags).sort(([, a], [, b]) => b - a)[0]?.[0] ||
+    '분석 준비중';
+
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="container mx-auto px-4">
-        {/* 헤더 - 사용자 정보 추가 */}
-        <div className="flex justify-between items-center mb-8">
-          <div className="text-center flex-1">
-            <h1 className="text-4xl font-bold text-gray-900 mb-2">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
+      <div className="max-w-6xl mx-auto space-y-6">
+        {/* 헤더 섹션 */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">
               🧠 마인드 트레이더
             </h1>
-            <p className="text-xl text-gray-600">
-              AI가 분석하는 나의 투자 심리 패턴
+            <p className="text-gray-600 mt-1">
+              {session.user?.name}님의 투자 심리 분석 대시보드
             </p>
           </div>
-
-          {/* 사용자 프로필 */}
-          <div className="flex items-center gap-4">
-            <div className="text-right">
-              <div className="text-sm font-medium text-gray-900">
-                {session?.user?.name}
-              </div>
-              <div className="text-xs text-gray-500">
-                {session?.user?.email}
-              </div>
-            </div>
-            {session?.user?.image && (
-              <img
-                src={session.user.image}
-                alt="프로필"
-                className="w-10 h-10 rounded-full"
-              />
-            )}
-            <Button variant="outline" size="sm" onClick={handleSignOut}>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setShowForm(!showForm)}
+              className="bg-white"
+            >
+              {showForm ? '목록 보기' : '새 기록 등록'}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={handleSignOut}
+              className="bg-white"
+            >
               로그아웃
             </Button>
           </div>
         </div>
 
-        {/* 통계 카드 */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">
-                총 매매 건수
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{trades.length}건</div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">
-                총 수익/손실
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-green-600">
-                +
-                {trades
-                  .reduce((sum, trade) => sum + (trade.profitLoss || 0), 0)
-                  .toLocaleString()}
-                원
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">
-                주요 감성 태그
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-purple-600">
-                기술적분석
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* 메인 액션 버튼 */}
-        {!showForm && (
-          <div className="text-center mb-8">
-            <Button
-              onClick={() => setShowForm(true)}
-              size="lg"
-              className="text-lg px-8 py-3"
-            >
-              📝 새 매매 기록 등록
-            </Button>
-          </div>
-        )}
-
-        {/* 매매 기록 입력 폼 */}
-        {showForm && (
-          <div className="mb-8">
-            <TradeForm onSubmit={handleSubmitTrade} isLoading={isLoading} />
-            <div className="text-center mt-4">
-              <Button variant="outline" onClick={() => setShowForm(false)}>
-                취소
+        {/* 오류 메시지 */}
+        {error && (
+          <Card className="border-red-200 bg-red-50">
+            <CardContent className="pt-4">
+              <p className="text-red-600">{error}</p>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setError(null)}
+                className="mt-2"
+              >
+                닫기
               </Button>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
         )}
 
-        {/* 매매 기록 리스트 */}
-        <TradeList trades={trades} isLoading={false} />
+        {showForm ? (
+          /* 매매 기록 입력 폼 */
+          <TradeForm onSubmit={handleSubmitTrade} isLoading={isSubmitting} />
+        ) : (
+          <>
+            {/* 통계 카드들 */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardDescription>총 매매 건수</CardDescription>
+                  <CardTitle className="text-2xl">{totalTrades}건</CardTitle>
+                </CardHeader>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardDescription>총 수익/손실</CardDescription>
+                  <div className="space-y-1">
+                    {profitByKRW !== 0 && (
+                      <CardTitle
+                        className={`text-lg ${
+                          profitByKRW >= 0 ? 'text-green-600' : 'text-red-600'
+                        }`}
+                      >
+                        KRW: {formatCurrency(profitByKRW, 'KRW')}
+                      </CardTitle>
+                    )}
+                    {profitByUSD !== 0 && (
+                      <CardTitle
+                        className={`text-lg ${
+                          profitByUSD >= 0 ? 'text-green-600' : 'text-red-600'
+                        }`}
+                      >
+                        USD: {formatCurrency(profitByUSD, 'USD')}
+                      </CardTitle>
+                    )}
+                    {profitByKRW === 0 && profitByUSD === 0 && (
+                      <CardTitle className="text-xl text-gray-500">
+                        수익 데이터 없음
+                      </CardTitle>
+                    )}
+                  </div>
+                </CardHeader>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardDescription>주요 감성 태그</CardDescription>
+                  <CardTitle className="text-2xl text-blue-600">
+                    {topEmotionTag}
+                  </CardTitle>
+                </CardHeader>
+              </Card>
+            </div>
+
+            {/* 매매 기록 목록 */}
+            {isLoading ? (
+              <Card>
+                <CardContent className="py-8 text-center">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                  <p className="text-gray-600">매매 기록을 불러오는 중...</p>
+                </CardContent>
+              </Card>
+            ) : trades.length === 0 ? (
+              <Card>
+                <CardContent className="py-8 text-center">
+                  <p className="text-gray-500 mb-4">
+                    아직 등록된 매매 기록이 없습니다.
+                  </p>
+                  <Button onClick={() => setShowForm(true)}>
+                    첫 번째 매매 기록 등록하기
+                  </Button>
+                </CardContent>
+              </Card>
+            ) : (
+              <TradeList trades={trades} />
+            )}
+          </>
+        )}
       </div>
     </div>
   );
