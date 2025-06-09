@@ -55,7 +55,48 @@ export function TradeDashboard() {
   useEffect(() => {
     if (session) {
       // 실제로는 API에서 사용자별 데이터를 가져올 예정
+      const today = new Date().toISOString().split('T')[0];
+      const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000)
+        .toISOString()
+        .split('T')[0];
+
       const demoTrades: Trade[] = [
+        // 오늘 거래 (TODAY 배지 테스트용)
+        {
+          id: '7',
+          symbol: '카카오',
+          type: 'BUY',
+          date: today,
+          price: 45000,
+          quantity: 20,
+          thoughts: '메타버스 진출 소식에 급매수. AI 챗봇 도입으로 성장 기대.',
+          emotionTags: ['뉴스반응', '메타버스'],
+          profitLoss: 15000,
+        },
+        {
+          id: '8',
+          symbol: '네이버',
+          type: 'SELL',
+          date: today,
+          price: 180000,
+          quantity: 3,
+          thoughts: '수익 실현. 목표가 도달해서 일부 매도.',
+          emotionTags: ['수익실현', '목표달성'],
+          profitLoss: 25000,
+        },
+        // 어제 거래 (어제 배지 테스트용)
+        {
+          id: '9',
+          symbol: 'LG에너지솔루션',
+          type: 'BUY',
+          date: yesterday,
+          price: 400000,
+          quantity: 2,
+          thoughts: '2차전지 시장 확대 기대. ESG 투자 트렌드 반영.',
+          emotionTags: ['ESG', '2차전지'],
+          profitLoss: 60000,
+        },
+        // 기존 데이터들
         {
           id: '1',
           symbol: '삼성전자',
@@ -70,6 +111,17 @@ export function TradeDashboard() {
         },
         {
           id: '2',
+          symbol: 'SK하이닉스',
+          type: 'BUY',
+          date: '2024-01-15',
+          price: 120000,
+          quantity: 5,
+          thoughts: '삼성전자와 함께 반도체 업종 동반 매수. 메모리 반등 기대.',
+          emotionTags: ['동조효과', '기대감'],
+          profitLoss: 30000,
+        },
+        {
+          id: '3',
           symbol: 'AAPL',
           type: 'BUY',
           date: '2024-01-10',
@@ -79,6 +131,40 @@ export function TradeDashboard() {
             '애플 실적 발표 전에 급매수. 놓칠까봐 두려워서 시장가로 샀다.',
           emotionTags: ['FOMO', '공포'],
           profitLoss: -25000,
+        },
+        {
+          id: '4',
+          symbol: 'TSLA',
+          type: 'SELL',
+          date: '2024-01-10',
+          price: 200,
+          quantity: 3,
+          thoughts: '일론 머스크 트위터 보고 급매도. 감정적으로 판단했다.',
+          emotionTags: ['감정적', '뉴스반응'],
+          profitLoss: -15000,
+        },
+        {
+          id: '5',
+          symbol: 'NFLX',
+          type: 'BUY',
+          date: '2024-01-08',
+          price: 450,
+          quantity: 2,
+          thoughts: '신작 드라마 화제성이 좋아서 매수. 구독자 증가 기대.',
+          emotionTags: ['뉴스반응', '희망적'],
+          profitLoss: 40000,
+        },
+        {
+          id: '6',
+          symbol: 'NVDA',
+          type: 'BUY',
+          date: '2024-01-08',
+          price: 500,
+          quantity: 4,
+          thoughts:
+            'AI 열풍으로 급등. 기술적 분석보다는 시장 분위기를 따라갔다.',
+          emotionTags: ['시장분위기', 'AI테마'],
+          profitLoss: 80000,
         },
       ];
       setTrades(demoTrades);
