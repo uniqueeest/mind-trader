@@ -53,6 +53,8 @@ interface Trade {
   currency: Currency;
   emotionTags: string[];
   profitLoss?: number;
+  currentPrice?: number; // 현재가 추가
+  profitRate?: number; // 수익률 추가
 }
 
 // TradeForm 데이터 타입
@@ -100,22 +102,22 @@ export function TradeDashboard() {
 
       const data = await response.json();
 
-      // API 응답을 UI용 타입으로 변환
+      // API 응답을 UI용 타입으로 변환 (API에서 이미 변환됨)
       const convertedTrades: Trade[] = data.trades.map(
         (apiTrade: ApiTrade) => ({
           id: apiTrade.id,
           symbol: apiTrade.symbol,
           type: apiTrade.type,
-          date: apiTrade.date.split('T')[0], // YYYY-MM-DD 형식으로 변환
+          date: apiTrade.date, // API에서 이미 YYYY-MM-DD 형식으로 변환됨
           price: apiTrade.price,
           quantity: apiTrade.quantity,
           thoughts: apiTrade.thoughts || '',
           market: apiTrade.market,
           currency: apiTrade.currency,
-          emotionTags: apiTrade.emotionTags
-            ? JSON.parse(apiTrade.emotionTags)
-            : [],
+          emotionTags: apiTrade.emotionTags as any, // API에서 이미 배열로 변환됨
           profitLoss: apiTrade.profitLoss || undefined,
+          currentPrice: apiTrade.currentPrice || undefined, // 현재가 추가
+          profitRate: apiTrade.profitRate || undefined, // 수익률 추가
         })
       );
 
@@ -165,16 +167,16 @@ export function TradeDashboard() {
         id: data.trade.id,
         symbol: data.trade.symbol,
         type: data.trade.type,
-        date: data.trade.date.split('T')[0],
+        date: data.trade.date,
         price: data.trade.price,
         quantity: data.trade.quantity,
         thoughts: data.trade.thoughts || '',
         market: data.trade.market,
         currency: data.trade.currency,
-        emotionTags: data.trade.emotionTags
-          ? JSON.parse(data.trade.emotionTags)
-          : [],
+        emotionTags: data.trade.emotionTags || [], // 이미 배열임
         profitLoss: data.trade.profitLoss || undefined,
+        currentPrice: data.trade.currentPrice || undefined,
+        profitRate: data.trade.profitRate || undefined,
       };
 
       setTrades((prev) => [newTrade, ...prev]);
@@ -193,7 +195,13 @@ export function TradeDashboard() {
   };
 
   const handleSignOut = () => {
-    signOut({ callbackUrl: '/auth/signin' });
+    signOut({
+      callbackUrl: '/auth/signin',
+      redirect: false,
+    }).then(() => {
+      // 로그아웃 후 히스토리 교체로 로그인 페이지로 이동
+      router.replace('/auth/signin');
+    });
   };
 
   // 로딩 중일 때 표시

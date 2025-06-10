@@ -20,7 +20,7 @@ import {
   type Market,
 } from '@/shared/types';
 
-// Trade 타입 정의 (통화 정보 포함)
+// Trade 타입 정의 (KIS API 데이터 포함)
 interface Trade {
   id: string;
   symbol: string;
@@ -33,6 +33,8 @@ interface Trade {
   currency: Currency;
   emotionTags: string[];
   profitLoss?: number; // 수익/손실
+  currentPrice?: number; // KIS API에서 가져온 현재가
+  profitRate?: number; // 수익률 (%)
 }
 
 interface TradeListProps {
@@ -42,6 +44,8 @@ interface TradeListProps {
 
 // 개별 매매 기록 컴포넌트
 function TradeItem({ trade }: { trade: Trade }) {
+  console.log(trade);
+
   return (
     <Card className="mb-3 hover:shadow-md transition-shadow">
       <CardContent className="p-4">
@@ -61,9 +65,17 @@ function TradeItem({ trade }: { trade: Trade }) {
               </Badge>
             </div>
             <div className="text-sm text-gray-600">
-              <span>가격: {formatCurrency(trade.price, trade.currency)}</span>
+              <span>매매가: {formatCurrency(trade.price, trade.currency)}</span>
               <span className="mx-2">•</span>
               <span>수량: {trade.quantity}주</span>
+              {trade.currentPrice && (
+                <>
+                  <span className="mx-2">•</span>
+                  <span className="text-blue-600 font-medium">
+                    현재가: {formatCurrency(trade.currentPrice, trade.currency)}
+                  </span>
+                </>
+              )}
               <span className="mx-2">•</span>
               <span className="text-xs bg-gray-100 px-2 py-1 rounded">
                 {MARKET_CONFIG[trade.market].label}
@@ -71,23 +83,48 @@ function TradeItem({ trade }: { trade: Trade }) {
             </div>
           </div>
 
-          {/* 수익/손실 표시 */}
-          {trade.profitLoss !== undefined && (
-            <div
-              className={`text-right ${
-                trade.profitLoss >= 0 ? 'text-green-600' : 'text-red-600'
-              }`}
-            >
-              <div className="text-base font-semibold">
-                {formatCurrency(trade.profitLoss, trade.currency)}
-              </div>
+          {/* 수익/손실 표시 (현재가 기준) */}
+          {trade.currentPrice && (
+            <div className="text-right">
+              {(() => {
+                const totalValue = trade.price * trade.quantity;
+                const currentValue = trade.currentPrice * trade.quantity;
+                const profitLoss =
+                  trade.type === 'BUY'
+                    ? currentValue - totalValue // 매수: 현재가치 - 매수가치
+                    : totalValue - currentValue; // 매도: 매도가치 - 현재가치
+                const profitRate = (profitLoss / totalValue) * 100;
+
+                return (
+                  <div
+                    className={`${
+                      profitLoss >= 0 ? 'text-green-600' : 'text-red-600'
+                    }`}
+                  >
+                    <div className="text-base font-semibold">
+                      {profitLoss >= 0 ? '+' : ''}
+                      {formatCurrency(profitLoss, trade.currency)}
+                    </div>
+                    <div className="text-xs">
+                      ({profitLoss >= 0 ? '+' : ''}
+                      {profitRate.toFixed(1)}%)
+                    </div>
+                    <div className="text-xs text-gray-500 mt-1">
+                      평가금액: {formatCurrency(currentValue, trade.currency)}
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+          )}
+
+          {/* KIS API 데이터가 없는 경우 */}
+          {!trade.currentPrice && (
+            <div className="text-right text-gray-400">
+              <div className="text-xs">현재가 정보 없음</div>
               <div className="text-xs">
-                ({trade.profitLoss >= 0 ? '+' : ''}
-                {(
-                  (trade.profitLoss / (trade.price * trade.quantity)) *
-                  100
-                ).toFixed(1)}
-                %)
+                매매금액:{' '}
+                {formatCurrency(trade.price * trade.quantity, trade.currency)}
               </div>
             </div>
           )}

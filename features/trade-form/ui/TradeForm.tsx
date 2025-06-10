@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -49,6 +49,12 @@ export function TradeForm({ onSubmit, isLoading = false }: TradeFormProps) {
     currency: 'KRW',
   });
 
+  // 실시간 종가 조회 상태
+  const [currentPrice, setCurrentPrice] = useState<number | null>(null);
+  const [priceLoading, setPriceLoading] = useState(false);
+  const [priceError, setPriceError] = useState<string | null>(null);
+  const [lastQueriedSymbol, setLastQueriedSymbol] = useState<string>(''); // 마지막 조회한 티커
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -76,6 +82,13 @@ export function TradeForm({ onSubmit, isLoading = false }: TradeFormProps) {
         ...prev,
         [field]: e.target.value,
       }));
+
+      // 종목명 변경 시 캐시 초기화
+      if (field === 'symbol') {
+        setCurrentPrice(null);
+        setPriceError(null);
+        setLastQueriedSymbol('');
+      }
     };
 
   const handleSelectChange = (value: 'BUY' | 'SELL') => {
@@ -94,7 +107,72 @@ export function TradeForm({ onSubmit, isLoading = false }: TradeFormProps) {
       symbol: '', // 시장 변경 시 종목명 리셋
       price: '', // 가격도 리셋 (통화가 바뀌므로)
     }));
+    // 종가 정보와 캐시도 리셋
+    setCurrentPrice(null);
+    setPriceError(null);
+    setLastQueriedSymbol('');
   };
+
+  // 수동 종가 조회 함수
+  const fetchCurrentPrice = useCallback(async () => {
+    const symbol = formData.symbol.trim();
+    const market = formData.market;
+
+    if (!symbol) return;
+
+    // 같은 티커면 조회하지 않음 (캐싱)
+    const cacheKey = `${symbol}-${market}`;
+    if (lastQueriedSymbol === cacheKey && currentPrice) {
+      console.log(`📋 캐시된 데이터 사용: ${symbol}`);
+      return;
+    }
+
+    setPriceLoading(true);
+    setPriceError(null);
+
+    try {
+      const response = await fetch('/api/stock-price', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ symbol, market }),
+      });
+
+      if (!response.ok) {
+        throw new Error('종가 조회에 실패했습니다');
+      }
+
+      const data = await response.json();
+
+      if (data.price) {
+        setCurrentPrice(data.price);
+        setLastQueriedSymbol(cacheKey); // 캐시 키 저장
+        setPriceError(null);
+
+        // 자동으로 가격 필드에 현재가 입력 (선택사항)
+        if (!formData.price) {
+          setFormData((prev) => ({
+            ...prev,
+            price: data.price.toString(),
+          }));
+        }
+      } else {
+        setPriceError('종가 정보를 찾을 수 없습니다');
+      }
+    } catch (error) {
+      console.error('종가 조회 오류:', error);
+      setPriceError('종가 조회 중 오류가 발생했습니다');
+    } finally {
+      setPriceLoading(false);
+    }
+  }, [
+    formData.symbol,
+    formData.market,
+    formData.price,
+    lastQueriedSymbol,
+    currentPrice,
+  ]);
 
   const currentMarketConfig = MARKET_CONFIG[formData.market];
 
@@ -125,17 +203,79 @@ export function TradeForm({ onSubmit, isLoading = false }: TradeFormProps) {
           {/* 종목명 */}
           <div className="space-y-2">
             <Label htmlFor="symbol">종목명</Label>
-            <Input
-              id="symbol"
-              placeholder={`예: ${currentMarketConfig.examples.join(', ')}`}
-              value={formData.symbol}
-              onChange={handleChange('symbol')}
-              required
-            />
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <Input
+                  id="symbol"
+                  placeholder={`예: ${currentMarketConfig.examples.join(', ')}`}
+                  value={formData.symbol}
+                  onChange={handleChange('symbol')}
+                  required
+                  className={currentPrice ? 'border-green-300' : ''}
+                />
+                {priceLoading && (
+                  <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                    <div className="animate-spin h-4 w-4 border-2 border-blue-500 border-t-transparent rounded-full"></div>
+                  </div>
+                )}
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={fetchCurrentPrice}
+                disabled={
+                  !formData.symbol.trim() ||
+                  priceLoading ||
+                  lastQueriedSymbol ===
+                    `${formData.symbol.trim()}-${formData.market}`
+                }
+                className="px-3"
+              >
+                {priceLoading
+                  ? '조회중'
+                  : lastQueriedSymbol ===
+                    `${formData.symbol.trim()}-${formData.market}`
+                  ? '조회완료'
+                  : '가격조회'}
+              </Button>
+            </div>
+
+            {/* 실시간 종가 정보 표시 */}
+            {currentPrice && (
+              <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-green-800">
+                    📈 실시간 종가
+                  </span>
+                  <span className="text-lg font-bold text-green-700">
+                    {currentMarketConfig.symbol}
+                    {currentPrice.toLocaleString()}
+                  </span>
+                </div>
+                <p className="text-xs text-green-600 mt-1">
+                  KIS API에서 조회된 최신 종가입니다
+                </p>
+              </div>
+            )}
+
+            {priceError && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-red-800">
+                    ⚠️ {priceError}
+                  </span>
+                </div>
+                <p className="text-xs text-red-600 mt-1">
+                  종목명을 다시 확인해주세요
+                </p>
+              </div>
+            )}
+
             <p className="text-xs text-gray-500">
               {formData.market === 'KR'
-                ? '한국 종목명을 입력하세요 (한글 또는 영문)'
-                : '미국 종목 티커를 입력하세요 (예: AAPL, TSLA)'}
+                ? '한국 종목 코드를 입력하세요 (6자리 숫자, 예: 005930)'
+                : '미국 주식/ETF 티커를 입력하세요 (예: AAPL, SPY, QQQ)'}
             </p>
           </div>
 
