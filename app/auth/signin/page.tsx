@@ -17,11 +17,11 @@ export default function SignIn() {
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    // 이미 로그인된 사용자는 메인 페이지로 리다이렉트
+    // 이미 로그인된 사용자는 메인 페이지로 리다이렉트 (히스토리 교체)
     const checkSession = async () => {
       const session = await getSession();
       if (session) {
-        router.push('/');
+        router.replace('/'); // push 대신 replace 사용으로 뒤로가기 문제 해결
       }
     };
     checkSession();
@@ -30,10 +30,17 @@ export default function SignIn() {
   const handleGoogleSignIn = async () => {
     setIsLoading(true);
     try {
-      await signIn('google', {
+      const result = await signIn('google', {
         callbackUrl: '/',
-        redirect: true,
+        redirect: false, // 수동으로 리다이렉트 처리
       });
+
+      if (result?.ok) {
+        // 로그인 성공 시 히스토리 교체로 홈으로 이동
+        router.replace('/');
+      } else if (result?.error) {
+        console.error('로그인 실패:', result.error);
+      }
     } catch (error) {
       console.error('로그인 실패:', error);
     } finally {
