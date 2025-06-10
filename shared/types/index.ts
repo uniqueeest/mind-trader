@@ -25,7 +25,7 @@ export const MARKET_CONFIG = {
     currency: 'USD' as Currency,
     symbol: '$',
     locale: 'en-US',
-    examples: ['AAPL', 'TSLA', 'NVDA', 'MSFT'],
+    examples: ['AAPL', 'TSLA', 'SPY', 'QQQ', 'VTI'],
     priceStep: 0.01,
     minPrice: 0.01,
   },
