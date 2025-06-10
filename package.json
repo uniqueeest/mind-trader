@@ -9,10 +9,13 @@
     "start": "next start",
     "lint": "next lint",
     "db:seed": "DATABASE_URL=\"file:./dev.db\" npx tsx prisma/seed.ts",
-    "db:studio": "DATABASE_URL=\"file:./dev.db\" npx prisma studio"
+    "db:studio": "DATABASE_URL=\"file:./dev.db\" npx prisma studio --port 5555",
+    "db:push": "DATABASE_URL=\"file:./dev.db\" npx prisma db push",
+    "db:reset": "DATABASE_URL=\"file:./dev.db\" npx prisma db push --accept-data-loss && pnpm run db:seed"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.9.1",
+    "@google/generative-ai": "^0.24.1",
     "@hookform/resolvers": "5.1.0",
     "@prisma/client": "^6.9.0",
     "@radix-ui/react-accordion": "^1.2.11",
