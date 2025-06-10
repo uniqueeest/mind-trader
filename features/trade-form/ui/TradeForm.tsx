@@ -359,7 +359,14 @@ export function TradeForm({ onSubmit, isLoading = false }: TradeFormProps) {
           </div>
 
           <Button type="submit" className="w-full" disabled={isLoading}>
-            {isLoading ? '저장 중...' : '매매 기록 저장'}
+            {isLoading ? (
+              <div className="flex items-center gap-2">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                AI 분석 중...
+              </div>
+            ) : (
+              '💭 AI 분석 + 저장'
+            )}
           </Button>
         </form>
       </CardContent>

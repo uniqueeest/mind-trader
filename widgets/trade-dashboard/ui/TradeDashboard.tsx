@@ -162,7 +162,7 @@ export function TradeDashboard() {
 
       const data = await response.json();
 
-      // 새로운 매매 기록을 목록에 추가
+      // 새로운 매매 기록을 목록에 추가 (AI 분석 결과 포함)
       const newTrade: Trade = {
         id: data.trade.id,
         symbol: data.trade.symbol,
@@ -173,7 +173,7 @@ export function TradeDashboard() {
         thoughts: data.trade.thoughts || '',
         market: data.trade.market,
         currency: data.trade.currency,
-        emotionTags: data.trade.emotionTags || [], // 이미 배열임
+        emotionTags: data.trade.emotionTags || [], // AI 분석된 태그
         profitLoss: data.trade.profitLoss || undefined,
         currentPrice: data.trade.currentPrice || undefined,
         profitRate: data.trade.profitRate || undefined,
@@ -182,8 +182,10 @@ export function TradeDashboard() {
       setTrades((prev) => [newTrade, ...prev]);
       setShowForm(false);
 
-      // TODO: 백그라운드에서 AI 감성 분석 실행
-      // analyzeTradeEmotion(newTrade.id);
+      // 🎉 AI 분석 완료 알림
+      if (data.trade.emotionTags && data.trade.emotionTags.length > 0) {
+        console.log('🤖 AI 분석 완료:', data.trade.emotionTags);
+      }
     } catch (error) {
       console.error('매매 기록 저장 실패:', error);
       setError(
