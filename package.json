@@ -4,14 +4,17 @@
   "private": true,
   "packageManager": "pnpm@10.9.0",
   "scripts": {
-    "dev": "next dev --turbopack",
+    "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "db:seed": "DATABASE_URL=\"file:./dev.db\" npx tsx prisma/seed.ts",
-    "db:studio": "DATABASE_URL=\"file:./dev.db\" npx prisma studio --port 5555",
-    "db:push": "DATABASE_URL=\"file:./dev.db\" npx prisma db push",
-    "db:reset": "DATABASE_URL=\"file:./dev.db\" npx prisma db push --accept-data-loss && pnpm run db:seed"
+    "db:generate": "npx prisma generate",
+    "db:migrate": "npx prisma migrate dev",
+    "db:deploy": "npx prisma migrate deploy",
+    "db:seed": "npx tsx prisma/seed.ts",
+    "db:studio": "npx prisma studio --port 5555",
+    "db:push": "npx prisma db push",
+    "db:reset": "npx prisma migrate reset && pnpm run db:seed"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.9.1",
