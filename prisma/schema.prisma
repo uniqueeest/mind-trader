@@ -7,6 +7,22 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// Enums 정의
+enum Market {
+  KR
+  US
+}
+
+enum Currency {
+  KRW
+  USD
+}
+
+enum TradeType {
+  BUY
+  SELL
+}
+
 model Account {
   id                String  @id @default(cuid())
   userId            String  @map("user_id")
@@ -62,17 +78,17 @@ model VerificationToken {
 }
 
 model Trade {
-  id           String   @id @default(cuid())
-  userId       String   @map("user_id")
+  id           String    @id @default(cuid())
+  userId       String    @map("user_id")
   symbol       String
-  type         String
+  type         TradeType
   date         DateTime
   price        Float
   quantity     Int
-  currency     String   @default("KRW")
-  market       String   @default("KR")
+  currency     Currency  @default(KRW)
+  market       Market    @default(KR)
   thoughts     String?
-  emotionTags  String[]
+  emotionTags  String[] // PostgreSQL array 타입
   aiAnalysis   String?
   confidence   Float?
   marketKospi  Float?
@@ -81,9 +97,9 @@ model Trade {
   currentPrice Float?
   profitLoss   Float?
   profitRate   Float?
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, date])
   @@index([userId, symbol])
