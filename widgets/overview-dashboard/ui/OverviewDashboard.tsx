@@ -28,12 +28,19 @@ interface Trade {
 export function OverviewDashboard() {
   const { data: session, status } = useSession();
   const [trades, setTrades] = useState<Trade[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
 
   // 사용자 매매 기록 조회
   useEffect(() => {
     const fetchTrades = async () => {
-      if (status !== 'authenticated') return;
+      // 세션이 로딩 중이면 기다리기
+      if (status === 'loading') return;
+
+      // 인증되지 않은 경우 로딩 종료
+      if (status !== 'authenticated') {
+        setIsLoading(false);
+        return;
+      }
 
       try {
         setIsLoading(true);
@@ -68,17 +75,19 @@ export function OverviewDashboard() {
     ],
   };
 
-  if (status === 'loading' || isLoading) {
+  // NextAuth 세션 로딩 중
+  if (status === 'loading') {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">로딩 중...</p>
+          <p className="mt-4 text-gray-600">인증 확인 중...</p>
         </div>
       </div>
     );
   }
 
+  // 로그인되지 않은 경우
   if (status === 'unauthenticated') {
     return (
       <div className="container mx-auto px-4 py-8">
@@ -95,6 +104,18 @@ export function OverviewDashboard() {
             </Link>
           </CardContent>
         </Card>
+      </div>
+    );
+  }
+
+  // 매매 기록 로딩 중 (인증된 상태에서)
+  if (isLoading) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">매매 기록 로딩 중...</p>
+        </div>
       </div>
     );
   }
