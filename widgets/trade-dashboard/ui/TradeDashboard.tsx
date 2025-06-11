@@ -294,7 +294,12 @@ export function TradeDashboard() {
 
         {showForm ? (
           /* 매매 기록 입력 폼 */
-          <TradeForm onSubmit={handleSubmitTrade} isLoading={isSubmitting} />
+          <TradeForm
+            onSubmit={handleSubmitTrade}
+            isLoading={isSubmitting}
+            market="KR"
+            currency="KRW"
+          />
         ) : (
           <>
             {/* 통계 카드들 */}
