@@ -1,5 +1,5 @@
-import { TradeDashboard } from '@/widgets/trade-dashboard/ui/TradeDashboard';
+import { OverviewDashboard } from '@/widgets/overview-dashboard/ui/OverviewDashboard';
 
 export default function Home() {
-  return <TradeDashboard />;
+  return <OverviewDashboard />;
 }
