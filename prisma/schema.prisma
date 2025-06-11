@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -72,7 +72,7 @@ model Trade {
   currency     String   @default("KRW")
   market       String   @default("KR")
   thoughts     String?
-  emotionTags  String?
+  emotionTags  String[]
   aiAnalysis   String?
   confidence   Float?
   marketKospi  Float?

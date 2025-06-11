@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -60,7 +60,7 @@ export function TradeForm({
   const [currentPrice, setCurrentPrice] = useState<number | null>(null);
   const [priceLoading, setPriceLoading] = useState(false);
   const [priceError, setPriceError] = useState<string | null>(null);
-  const [lastQueriedSymbol, setLastQueriedSymbol] = useState<string>(''); // 마지막 조회한 티커
+  const [lastQueriedSymbol, setLastQueriedSymbol] = useState<string>(''); // 마지막 조회한 티커+날짜
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -77,6 +77,10 @@ export function TradeForm({
         market: market,
         currency: currency,
       });
+      // 가격 상태도 리셋
+      setCurrentPrice(null);
+      setPriceError(null);
+      setLastQueriedSymbol('');
     } catch (error) {
       console.error('매매 기록 저장 실패:', error);
     }
@@ -90,8 +94,8 @@ export function TradeForm({
         [field]: e.target.value,
       }));
 
-      // 종목명 변경 시 캐시 초기화
-      if (field === 'symbol') {
+      // 종목명 또는 날짜 변경 시 캐시 초기화
+      if (field === 'symbol' || field === 'date') {
         setCurrentPrice(null);
         setPriceError(null);
         setLastQueriedSymbol('');
@@ -105,17 +109,16 @@ export function TradeForm({
     }));
   };
 
-  // 시장 변경 함수 제거 (고정된 시장 사용)
-
-  // 수동 종가 조회 함수
+  // 종가 조회 함수 (날짜 포함)
   const fetchCurrentPrice = useCallback(async () => {
     const symbol = formData.symbol.trim();
     const market = formData.market;
+    const date = formData.date;
 
     if (!symbol) return;
 
-    // 같은 티커면 조회하지 않음 (캐싱)
-    const cacheKey = `${symbol}-${market}`;
+    // 캐시 키 생성 (종목+시장+날짜)
+    const cacheKey = `${symbol}-${market}-${date || 'current'}`;
     if (lastQueriedSymbol === cacheKey && currentPrice) {
       console.log(`📋 캐시된 데이터 사용: ${symbol}`);
       return;
@@ -130,7 +133,11 @@ export function TradeForm({
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ symbol, market }),
+        body: JSON.stringify({
+          symbol,
+          market,
+          date, // 날짜 전달
+        }),
       });
 
       if (!response.ok) {
@@ -144,7 +151,7 @@ export function TradeForm({
         setLastQueriedSymbol(cacheKey); // 캐시 키 저장
         setPriceError(null);
 
-        // 자동으로 가격 필드에 현재가 입력 (선택사항)
+        // 자동으로 가격 필드에 조회된 종가 입력 (선택사항)
         if (!formData.price) {
           setFormData((prev) => ({
             ...prev,
@@ -163,12 +170,14 @@ export function TradeForm({
   }, [
     formData.symbol,
     formData.market,
+    formData.date,
     formData.price,
     lastQueriedSymbol,
     currentPrice,
   ]);
 
   const currentMarketConfig = MARKET_CONFIG[formData.market];
+  const isDateToday = formData.date === new Date().toISOString().split('T')[0];
 
   return (
     <Card className="w-full max-w-2xl mx-auto">
@@ -194,6 +203,26 @@ export function TradeForm({
                 ({formData.currency})
               </span>
             </div>
+          </div>
+
+          {/* 매매 날짜 (최상단으로 이동) */}
+          <div className="space-y-2">
+            <Label htmlFor="date" className="text-base font-semibold">
+              📅 매매 날짜
+            </Label>
+            <Input
+              id="date"
+              type="date"
+              value={formData.date}
+              onChange={handleChange('date')}
+              required
+              className="text-base"
+            />
+            <p className="text-xs text-gray-500">
+              {isDateToday
+                ? '오늘 날짜로 설정되었습니다 (현재가 조회)'
+                : '선택한 날짜의 종가를 조회할 수 있습니다'}
+            </p>
           </div>
 
           {/* 종목명 */}
@@ -224,25 +253,31 @@ export function TradeForm({
                   !formData.symbol.trim() ||
                   priceLoading ||
                   lastQueriedSymbol ===
-                    `${formData.symbol.trim()}-${formData.market}`
+                    `${formData.symbol.trim()}-${formData.market}-${
+                      formData.date || 'current'
+                    }`
                 }
                 className="px-3"
               >
                 {priceLoading
                   ? '조회중'
                   : lastQueriedSymbol ===
-                    `${formData.symbol.trim()}-${formData.market}`
+                    `${formData.symbol.trim()}-${formData.market}-${
+                      formData.date || 'current'
+                    }`
                   ? '조회완료'
-                  : '가격조회'}
+                  : isDateToday
+                  ? '현재가 조회'
+                  : '종가 조회'}
               </Button>
             </div>
 
-            {/* 실시간 종가 정보 표시 */}
+            {/* 종가 정보 표시 */}
             {currentPrice && (
               <div className="bg-green-50 border border-green-200 rounded-lg p-3">
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium text-green-800">
-                    📈 실시간 종가
+                    📈 {isDateToday ? '실시간 현재가' : `${formData.date} 종가`}
                   </span>
                   <span className="text-lg font-bold text-green-700">
                     {currentMarketConfig.symbol}
@@ -250,7 +285,8 @@ export function TradeForm({
                   </span>
                 </div>
                 <p className="text-xs text-green-600 mt-1">
-                  KIS API에서 조회된 최신 종가입니다
+                  KIS API에서 조회된{' '}
+                  {isDateToday ? '최신 현재가' : '해당 일자 종가'}입니다
                 </p>
               </div>
             )}
@@ -270,7 +306,7 @@ export function TradeForm({
 
             <p className="text-xs text-gray-500">
               {formData.market === 'KR'
-                ? '한국 종목 코드를 입력하세요 (6자리 숫자, 예: 005930)'
+                ? '한국 종목명을 입력하세요 (예: 삼성전자, 카카오)'
                 : '미국 주식/ETF 티커를 입력하세요 (예: AAPL, SPY, QQQ)'}
             </p>
           </div>
@@ -289,19 +325,8 @@ export function TradeForm({
             </Select>
           </div>
 
-          {/* 날짜, 가격, 수량을 한 줄에 */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="date">매매 날짜</Label>
-              <Input
-                id="date"
-                type="date"
-                value={formData.date}
-                onChange={handleChange('date')}
-                required
-              />
-            </div>
-
+          {/* 가격, 수량 */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="price">
                 매매 가격 ({currentMarketConfig.symbol})

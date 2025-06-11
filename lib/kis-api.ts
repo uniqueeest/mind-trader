@@ -244,9 +244,24 @@ class KISApiClient {
   }
 
   // 📈 국내주식 종가 조회 (일봉 데이터 기반)
-  async getDomesticStockPrice(symbol: string): Promise<StockPrice | null> {
+  async getDomesticStockPrice(
+    symbol: string,
+    targetDate?: string
+  ): Promise<StockPrice | null> {
     try {
       const token = await this.getAccessToken();
+
+      // 날짜 포맷팅 (YYYYMMDD)
+      let formattedDate = '';
+      if (targetDate) {
+        formattedDate = targetDate.replace(/-/g, ''); // 2024-01-15 → 20240115
+      }
+
+      console.log(
+        `📊 국내주식 조회: ${symbol}${
+          formattedDate ? ` (${formattedDate})` : ' (현재가)'
+        }`
+      );
 
       // 국내주식 일자별 시세 API 사용
       const response = await fetch(
@@ -275,9 +290,24 @@ class KISApiClient {
         return null;
       }
 
-      // 가장 최근 거래일의 종가 사용
-      const latestData = data.output[0]; // 최신 데이터가 첫 번째
-      if (!latestData) {
+      // 특정 날짜 요청 시 해당 날짜 데이터 찾기
+      let targetData = data.output[0]; // 기본값: 최신 데이터
+
+      if (formattedDate) {
+        const dateMatch = data.output.find(
+          (item) => item.stck_bsop_date === formattedDate
+        );
+        if (dateMatch) {
+          targetData = dateMatch;
+          console.log(`✅ ${formattedDate} 날짜 데이터 발견`);
+        } else {
+          console.warn(
+            `⚠️ ${formattedDate} 날짜 데이터 없음, 최신 데이터 사용`
+          );
+        }
+      }
+
+      if (!targetData) {
         console.error(`국내주식 데이터 없음 (${symbol})`);
         return null;
       }
@@ -285,16 +315,16 @@ class KISApiClient {
       return {
         symbol,
         name: symbol, // 일자별 API는 종목명을 제공하지 않음
-        price: parseFloat(latestData.stck_clpr), // 종가 사용
-        change: parseFloat(latestData.prdy_vrss),
-        changePercent: parseFloat(latestData.prdy_ctrt),
-        volume: parseInt(latestData.acml_vol),
-        high: parseFloat(latestData.stck_hgpr),
-        low: parseFloat(latestData.stck_lwpr),
-        open: parseFloat(latestData.stck_oprc),
+        price: parseFloat(targetData.stck_clpr), // 종가 사용
+        change: parseFloat(targetData.prdy_vrss),
+        changePercent: parseFloat(targetData.prdy_ctrt),
+        volume: parseInt(targetData.acml_vol),
+        high: parseFloat(targetData.stck_hgpr),
+        low: parseFloat(targetData.stck_lwpr),
+        open: parseFloat(targetData.stck_oprc),
         market: 'KR',
         currency: 'KRW',
-        date: latestData.stck_bsop_date.replace(
+        date: targetData.stck_bsop_date.replace(
           /(\d{4})(\d{2})(\d{2})/,
           '$1-$2-$3'
         ),
@@ -306,9 +336,24 @@ class KISApiClient {
   }
 
   // 🌎 해외주식 일자별 시세 조회 (ETF 포함)
-  async getOverseaStockPrice(symbol: string): Promise<StockPrice | null> {
+  async getOverseaStockPrice(
+    symbol: string,
+    targetDate?: string
+  ): Promise<StockPrice | null> {
     try {
       const token = await this.getAccessToken();
+
+      // 날짜 포맷팅 (YYYYMMDD)
+      let formattedDate = '';
+      if (targetDate) {
+        formattedDate = targetDate.replace(/-/g, ''); // 2024-01-15 → 20240115
+      }
+
+      console.log(
+        `🌍 해외주식 조회: ${symbol}${
+          formattedDate ? ` (${formattedDate})` : ' (현재가)'
+        }`
+      );
 
       // 여러 거래소 시도 (ETF 지원을 위해)
       const exchanges = [
@@ -321,9 +366,9 @@ class KISApiClient {
         try {
           console.log(`🔍 ${symbol} 조회 시도: ${exchange} 거래소`);
 
-          // 해외주식 일자별 시세 API 사용
+          // 해외주식 일자별 시세 API 사용 (BYMD 파라미터에 날짜 설정)
           const response = await fetch(
-            `${this.baseUrl}/uapi/overseas-price/v1/quotations/dailyprice?AUTH=&EXCD=${exchange}&SYMB=${symbol}&GUBN=0&BYMD=&MODP=0`,
+            `${this.baseUrl}/uapi/overseas-price/v1/quotations/dailyprice?AUTH=&EXCD=${exchange}&SYMB=${symbol}&GUBN=0&BYMD=${formattedDate}&MODP=0`,
             {
               method: 'GET',
               headers: {
@@ -354,9 +399,24 @@ class KISApiClient {
             continue; // 다음 거래소 시도
           }
 
-          // 가장 최근 거래일의 종가 사용
-          const latestData = data.output2[0]; // 최신 데이터가 첫 번째
-          if (!latestData) {
+          // 특정 날짜 요청 시 해당 날짜 데이터 찾기
+          let targetData = data.output2[0]; // 기본값: 최신 데이터
+
+          if (formattedDate) {
+            const dateMatch = data.output2.find(
+              (item) => item.xymd === formattedDate
+            );
+            if (dateMatch) {
+              targetData = dateMatch;
+              console.log(`✅ ${formattedDate} 날짜 데이터 발견`);
+            } else {
+              console.warn(
+                `⚠️ ${formattedDate} 날짜 데이터 없음, 최신 데이터 사용`
+              );
+            }
+          }
+
+          if (!targetData) {
             console.log(`${exchange} 거래소 빈 데이터 (${symbol})`);
             continue; // 다음 거래소 시도
           }
@@ -368,16 +428,16 @@ class KISApiClient {
           return {
             symbol,
             name: symbol, // 해외주식은 종목명 별도 조회 필요
-            price: parseFloat(latestData.clos), // 종가 사용
+            price: parseFloat(targetData.clos), // 종가 사용
             change: parseFloat(output1.diff),
             changePercent: parseFloat(output1.rate),
-            volume: parseInt(latestData.tvol),
-            high: parseFloat(latestData.high),
-            low: parseFloat(latestData.low),
-            open: parseFloat(latestData.open),
+            volume: parseInt(targetData.tvol),
+            high: parseFloat(targetData.high),
+            low: parseFloat(targetData.low),
+            open: parseFloat(targetData.open),
             market: 'US',
             currency: 'USD',
-            date: latestData.xymd.replace(/(\d{4})(\d{2})(\d{2})/, '$1-$2-$3'),
+            date: targetData.xymd.replace(/(\d{4})(\d{2})(\d{2})/, '$1-$2-$3'),
           };
         } catch (exchangeError) {
           console.log(
@@ -400,14 +460,19 @@ class KISApiClient {
   // 🎯 통합 주식 가격 조회 (한국/미국 자동 분기)
   async getStockPrice(
     symbol: string,
-    market: 'KR' | 'US'
+    market: 'KR' | 'US',
+    targetDate?: string
   ): Promise<StockPrice | null> {
-    console.log(`📊 ${market} 주식 조회: ${symbol}`);
+    console.log(
+      `📊 ${market} 주식 조회: ${symbol}${
+        targetDate ? ` (${targetDate})` : ' (현재가)'
+      }`
+    );
 
     if (market === 'KR') {
-      return await this.getDomesticStockPrice(symbol);
+      return await this.getDomesticStockPrice(symbol, targetDate);
     } else {
-      return await this.getOverseaStockPrice(symbol);
+      return await this.getOverseaStockPrice(symbol, targetDate);
     }
   }
 
@@ -448,10 +513,14 @@ export async function enrichTradeWithMarketData(
   marketSp500?: number;
 }> {
   try {
-    console.log(`💹 시장 데이터 수집: ${symbol} (${market})`);
+    console.log(
+      `💹 시장 데이터 수집: ${symbol} (${market})${
+        date ? ` - ${date}` : ' - 현재가'
+      }`
+    );
 
-    // 해당 종목 현재가 조회
-    const stockData = await kisAPI.getStockPrice(symbol, market);
+    // 해당 종목 특정 날짜/현재가 조회
+    const stockData = await kisAPI.getStockPrice(symbol, market, date);
 
     if (stockData) {
       console.log(
