@@ -35,9 +35,16 @@ interface TradeFormData {
 interface TradeFormProps {
   onSubmit: (data: TradeFormData) => Promise<void>;
   isLoading?: boolean;
+  market: Market; // 고정된 시장 값
+  currency: Currency; // 고정된 통화 값
 }
 
-export function TradeForm({ onSubmit, isLoading = false }: TradeFormProps) {
+export function TradeForm({
+  onSubmit,
+  isLoading = false,
+  market,
+  currency,
+}: TradeFormProps) {
   const [formData, setFormData] = useState<TradeFormData>({
     symbol: '',
     type: 'BUY',
@@ -45,8 +52,8 @@ export function TradeForm({ onSubmit, isLoading = false }: TradeFormProps) {
     price: '',
     quantity: '',
     thoughts: '',
-    market: 'KR',
-    currency: 'KRW',
+    market: market,
+    currency: currency,
   });
 
   // 실시간 종가 조회 상태
@@ -67,8 +74,8 @@ export function TradeForm({ onSubmit, isLoading = false }: TradeFormProps) {
         price: '',
         quantity: '',
         thoughts: '',
-        market: 'KR',
-        currency: 'KRW',
+        market: market,
+        currency: currency,
       });
     } catch (error) {
       console.error('매매 기록 저장 실패:', error);
@@ -98,20 +105,7 @@ export function TradeForm({ onSubmit, isLoading = false }: TradeFormProps) {
     }));
   };
 
-  const handleMarketChange = (value: Market) => {
-    const currency = MARKET_CONFIG[value].currency;
-    setFormData((prev) => ({
-      ...prev,
-      market: value,
-      currency: currency,
-      symbol: '', // 시장 변경 시 종목명 리셋
-      price: '', // 가격도 리셋 (통화가 바뀌므로)
-    }));
-    // 종가 정보와 캐시도 리셋
-    setCurrentPrice(null);
-    setPriceError(null);
-    setLastQueriedSymbol('');
-  };
+  // 시장 변경 함수 제거 (고정된 시장 사용)
 
   // 수동 종가 조회 함수
   const fetchCurrentPrice = useCallback(async () => {
@@ -186,18 +180,20 @@ export function TradeForm({ onSubmit, isLoading = false }: TradeFormProps) {
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* 시장 선택 */}
+          {/* 시장 정보 표시 (선택 불가) */}
           <div className="space-y-2">
             <Label>거래 시장</Label>
-            <Select value={formData.market} onValueChange={handleMarketChange}>
-              <SelectTrigger>
-                <SelectValue placeholder="거래 시장을 선택하세요" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="KR">🇰🇷 한국 시장 (KRW)</SelectItem>
-                <SelectItem value="US">🇺🇸 미국 시장 (USD)</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg border">
+              <span className="text-lg">
+                {formData.market === 'KR' ? '🇰🇷' : '🇺🇸'}
+              </span>
+              <span className="font-medium">
+                {formData.market === 'KR' ? '한국 시장' : '미국 시장'}
+              </span>
+              <span className="text-sm text-gray-500">
+                ({formData.currency})
+              </span>
+            </div>
           </div>
 
           {/* 종목명 */}
