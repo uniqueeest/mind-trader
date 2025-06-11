@@ -112,7 +112,7 @@ export async function GET(request: NextRequest) {
     const transformedTrades = trades.map((trade) => ({
       ...trade,
       date: trade.date.toISOString().split('T')[0], // Date -> string 변환
-      emotionTags: trade.emotionTags ? JSON.parse(trade.emotionTags) : [], // null -> 빈 배열 변환
+      emotionTags: trade.emotionTags || [], // PostgreSQL 배열 타입, null 체크만
     }));
 
     return NextResponse.json({ trades: transformedTrades });
@@ -186,7 +186,7 @@ export async function POST(request: NextRequest) {
       marketSp500: marketData.marketSp500 || null,
 
       // AI 분석은 백그라운드에서 처리
-      emotionTags: null,
+      emotionTags: [],
       aiAnalysis: null,
       confidence: null,
 
@@ -234,15 +234,13 @@ export async function POST(request: NextRequest) {
     }
 
     // AI 분석 결과를 포함하여 매매 기록 생성
-    const finalTradeData = {
-      ...tradeData,
-      emotionTags: emotionTags.length > 0 ? JSON.stringify(emotionTags) : null,
-      aiAnalysis,
-      confidence,
-    };
-
     const trade = await prisma.trade.create({
-      data: finalTradeData,
+      data: {
+        ...tradeData,
+        emotionTags: emotionTags.length > 0 ? emotionTags : [], // PostgreSQL 배열로 직접 저장
+        aiAnalysis,
+        confidence,
+      },
     });
 
     console.log('✅ 저장된 데이터:', {
