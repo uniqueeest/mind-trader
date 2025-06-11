@@ -6,7 +6,7 @@ import { Market } from '@prisma/client';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { symbol, market } = body;
+    const { symbol, market, date } = body;
 
     if (!symbol || !market) {
       return NextResponse.json(
@@ -15,10 +15,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log(`📈 실시간 종가 조회: ${symbol} (${market})`);
+    console.log(
+      `📈 종가 조회: ${symbol} (${market})${date ? ` - ${date}` : ' - 현재가'}`
+    );
 
-    // KIS API로 실시간 종가 조회
-    const stockData = await kisAPI.getStockPrice(symbol, market as Market);
+    // KIS API로 종가 조회 (날짜 지정 가능)
+    const stockData = await kisAPI.getStockPrice(
+      symbol,
+      market as Market,
+      date
+    );
 
     if (!stockData) {
       return NextResponse.json(
