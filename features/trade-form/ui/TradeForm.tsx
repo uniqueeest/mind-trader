@@ -215,13 +215,14 @@ export function TradeForm({
               type="date"
               value={formData.date}
               onChange={handleChange('date')}
+              max={new Date().toISOString().split('T')[0]}
               required
               className="text-base"
             />
             <p className="text-xs text-gray-500">
               {isDateToday
                 ? '오늘 날짜로 설정되었습니다 (현재가 조회)'
-                : '선택한 날짜의 종가를 조회할 수 있습니다'}
+                : '선택한 날짜의 종가를 조회할 수 있습니다 (미래 날짜는 선택할 수 없습니다)'}
             </p>
           </div>
 
