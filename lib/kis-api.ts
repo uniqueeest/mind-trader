@@ -248,6 +248,15 @@ class KISApiClient {
     symbol: string,
     targetDate?: string
   ): Promise<StockPrice | null> {
+    return await this.getDomesticStockPriceWithRetry(symbol, targetDate, false);
+  }
+
+  // 🔄 토큰 재발급 재시도 로직이 포함된 국내주식 조회
+  private async getDomesticStockPriceWithRetry(
+    symbol: string,
+    targetDate?: string,
+    isRetry: boolean = false
+  ): Promise<StockPrice | null> {
     try {
       const token = await this.getAccessToken();
 
@@ -279,11 +288,47 @@ class KISApiClient {
       );
 
       if (!response.ok) {
-        console.error(`국내주식 조회 실패 (${symbol}):`, response.status);
+        const errorText = await response.text();
+        console.error(
+          `국내주식 조회 실패 (${symbol}):`,
+          response.status,
+          errorText
+        );
+
+        // 토큰 만료 오류 감지
+        if (errorText.includes('기간이 만료된 token') && !isRetry) {
+          console.log('🔄 토큰 만료 감지, 새 토큰으로 재시도합니다.');
+          // 만료된 토큰 삭제
+          await prisma.kisToken.deleteMany({});
+          // 재시도 (한 번만)
+          return await this.getDomesticStockPriceWithRetry(
+            symbol,
+            targetDate,
+            true
+          );
+        }
+
         return null;
       }
 
       const data: KISDomesticDailyPriceResponse = await response.json();
+
+      // 토큰 만료 오류 감지 (JSON 응답에서도)
+      if (
+        data.rt_cd === '1' &&
+        data.msg1?.includes('기간이 만료된 token') &&
+        !isRetry
+      ) {
+        console.log('🔄 토큰 만료 감지 (JSON), 새 토큰으로 재시도합니다.');
+        // 만료된 토큰 삭제
+        await prisma.kisToken.deleteMany({});
+        // 재시도 (한 번만)
+        return await this.getDomesticStockPriceWithRetry(
+          symbol,
+          targetDate,
+          true
+        );
+      }
 
       if (data.rt_cd !== '0') {
         console.error(`국내주식 조회 실패 (${symbol}):`, data.msg1);
@@ -340,6 +385,15 @@ class KISApiClient {
     symbol: string,
     targetDate?: string
   ): Promise<StockPrice | null> {
+    return await this.getOverseaStockPriceWithRetry(symbol, targetDate, false);
+  }
+
+  // 🔄 토큰 재발급 재시도 로직이 포함된 해외주식 조회
+  private async getOverseaStockPriceWithRetry(
+    symbol: string,
+    targetDate?: string,
+    isRetry: boolean = false
+  ): Promise<StockPrice | null> {
     try {
       const token = await this.getAccessToken();
 
@@ -382,14 +436,52 @@ class KISApiClient {
           );
 
           if (!response.ok) {
+            const errorText = await response.text();
             console.log(
               `${exchange} 거래소 조회 실패 (${symbol}):`,
-              response.status
+              response.status,
+              errorText
             );
+
+            // 토큰 만료 오류 감지
+            if (errorText.includes('기간이 만료된 token') && !isRetry) {
+              console.log('🔄 토큰 만료 감지, 새 토큰으로 재시도합니다.');
+              // 만료된 토큰 삭제
+              await prisma.kisToken.deleteMany({});
+              // 재시도 (한 번만)
+              return await this.getOverseaStockPriceWithRetry(
+                symbol,
+                targetDate,
+                true
+              );
+            }
+
             continue; // 다음 거래소 시도
           }
 
           const data: KISOverseaChartResponse = await response.json();
+          console.log(`🔍 ${exchange} API 응답:`, {
+            rt_cd: data.rt_cd,
+            msg1: data.msg1,
+            output2_length: data.output2?.length || 0,
+          });
+
+          // 토큰 만료 오류 감지 (JSON 응답에서도)
+          if (
+            data.rt_cd === '1' &&
+            data.msg1?.includes('기간이 만료된 token') &&
+            !isRetry
+          ) {
+            console.log('🔄 토큰 만료 감지 (JSON), 새 토큰으로 재시도합니다.');
+            // 만료된 토큰 삭제
+            await prisma.kisToken.deleteMany({});
+            // 재시도 (한 번만)
+            return await this.getOverseaStockPriceWithRetry(
+              symbol,
+              targetDate,
+              true
+            );
+          }
 
           if (data.rt_cd !== '0') {
             console.log(
