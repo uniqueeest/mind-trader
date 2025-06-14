@@ -136,13 +136,37 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
 
-    const { symbol, type, date, price, quantity, thoughts, market, currency } =
-      body;
+    const {
+      symbol,
+      type,
+      date,
+      buyPrice,
+      sellPrice,
+      quantity,
+      thoughts,
+      market,
+      currency,
+    } = body;
 
     // 입력 데이터 검증
-    if (!symbol || !type || !date || !price || !quantity) {
+    if (!symbol || !type || !date || !quantity) {
       return NextResponse.json(
         { error: '필수 정보가 누락되었습니다' },
+        { status: 400 }
+      );
+    }
+
+    // 매수/매도 가격 검증
+    if (type === 'BUY' && !buyPrice) {
+      return NextResponse.json(
+        { error: '매수가를 입력해주세요' },
+        { status: 400 }
+      );
+    }
+
+    if (type === 'SELL' && (!buyPrice || !sellPrice)) {
+      return NextResponse.json(
+        { error: '매수가와 매도가를 모두 입력해주세요' },
         { status: 400 }
       );
     }
@@ -159,52 +183,59 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 🚀 한국투자증권 API로 실시간 종가 수집
-    console.log(`💹 ${symbol} (${market || 'KR'}) 종가 데이터 수집 시작...`);
-    const marketData = await enrichTradeWithMarketData(
-      symbol,
-      (market || 'KR') as Market,
-      date
-    );
+    // 🚀 한국투자증권 API로 실시간 종가 수집 (매수 시에만)
+    let marketData = null;
+    if (type === 'BUY') {
+      console.log(`💹 ${symbol} (${market || 'KR'}) 종가 데이터 수집 시작...`);
+      marketData = await enrichTradeWithMarketData(
+        symbol,
+        (market || 'KR') as Market,
+        date
+      );
+    }
 
-    // 매매 기록 데이터 준비 (KIS API 데이터 포함)
+    // 매매 기록 데이터 준비
     const tradeData = {
       userId: user.id,
       symbol,
       type: type as TradeType,
       date: new Date(date),
-      price: parseFloat(price),
+      buyPrice: parseFloat(buyPrice),
+      sellPrice: type === 'SELL' ? parseFloat(sellPrice) : null,
       quantity: parseInt(quantity),
       thoughts: thoughts || null,
       market: (market || 'KR') as Market,
       currency: (currency || 'KRW') as Currency,
 
-      // 🔥 한국투자증권 실시간 데이터 자동 추가
-      currentPrice: marketData.currentPrice || null,
-      marketKospi: marketData.marketKospi || null,
-      marketNasdaq: marketData.marketNasdaq || null,
-      marketSp500: marketData.marketSp500 || null,
+      // 🔥 한국투자증권 실시간 데이터 자동 추가 (매수 시에만)
+      currentPrice: type === 'BUY' ? marketData?.currentPrice || null : null,
+      marketKospi: type === 'BUY' ? marketData?.marketKospi || null : null,
+      marketNasdaq: type === 'BUY' ? marketData?.marketNasdaq || null : null,
+      marketSp500: type === 'BUY' ? marketData?.marketSp500 || null : null,
 
       // AI 분석은 백그라운드에서 처리
       emotionTags: [],
       aiAnalysis: null,
       confidence: null,
 
-      // 수익률 계산 (현재가 기준)
-      profitLoss: marketData.currentPrice
-        ? type === 'BUY'
-          ? (marketData.currentPrice - parseFloat(price)) * parseInt(quantity)
-          : (parseFloat(price) - marketData.currentPrice) * parseInt(quantity)
-        : null,
-      profitRate: marketData.currentPrice
-        ? type === 'BUY'
-          ? ((marketData.currentPrice - parseFloat(price)) /
-              parseFloat(price)) *
+      // 수익률 계산
+      profitLoss:
+        type === 'SELL'
+          ? (parseFloat(sellPrice) - parseFloat(buyPrice)) * parseInt(quantity)
+          : marketData?.currentPrice
+          ? (marketData.currentPrice - parseFloat(buyPrice)) *
+            parseInt(quantity)
+          : null,
+      profitRate:
+        type === 'SELL'
+          ? ((parseFloat(sellPrice) - parseFloat(buyPrice)) /
+              parseFloat(buyPrice)) *
             100
-          : ((parseFloat(price) - marketData.currentPrice) /
-              parseFloat(price)) *
+          : marketData?.currentPrice
+          ? ((marketData.currentPrice - parseFloat(buyPrice)) /
+              parseFloat(buyPrice)) *
             100
-        : null,
+          : null,
     };
 
     // 매매 기록 데이터 디버깅
@@ -226,86 +257,32 @@ export async function POST(request: NextRequest) {
         const analysisResult = await performAIAnalysis(thoughts);
         emotionTags = analysisResult.tags;
         confidence = analysisResult.confidence;
-        aiAnalysis = `AI 분석: ${emotionTags.join(', ')}`;
-        console.log(`🤖 AI 분석 완료: ${emotionTags.join(', ')}`);
       } catch (error) {
         console.error('AI 분석 실패:', error);
       }
     }
 
-    // AI 분석 결과를 포함하여 매매 기록 생성
+    // 매매 기록 저장
     const trade = await prisma.trade.create({
       data: {
         ...tradeData,
-        emotionTags: emotionTags.length > 0 ? emotionTags : [], // PostgreSQL 배열로 직접 저장
+        emotionTags,
         aiAnalysis,
         confidence,
       },
     });
 
-    console.log('✅ 저장된 데이터:', {
-      id: trade.id,
-      symbol: trade.symbol,
-      currentPrice: trade.currentPrice,
-      profitLoss: trade.profitLoss,
-      profitRate: trade.profitRate,
-    });
-
-    // 로그 출력
-    if (marketData.currentPrice) {
-      const profitLoss =
-        type === 'BUY'
-          ? (marketData.currentPrice - parseFloat(price)) * parseInt(quantity)
-          : (parseFloat(price) - marketData.currentPrice) * parseInt(quantity);
-      const profitRate =
-        type === 'BUY'
-          ? ((marketData.currentPrice - parseFloat(price)) /
-              parseFloat(price)) *
-            100
-          : ((parseFloat(price) - marketData.currentPrice) /
-              parseFloat(price)) *
-            100;
-
-      console.log(
-        `✅ ${symbol} 현재가: ${marketData.currentPrice.toLocaleString()}${
-          currency === 'USD' ? '$' : '원'
-        }`
-      );
-      console.log(
-        `📊 수익률: ${
-          profitLoss >= 0 ? '+' : ''
-        }${profitLoss.toLocaleString()}${currency === 'USD' ? '$' : '원'} (${
-          profitRate >= 0 ? '+' : ''
-        }${profitRate.toFixed(1)}%)`
-      );
-    }
-
-    // 프론트엔드용 응답 데이터 (emotionTags를 배열로 변환)
-    const responseData = {
-      trade: {
-        ...trade,
-        date: trade.date.toISOString().split('T')[0],
-        emotionTags: emotionTags, // 이미 배열 형태
-      },
+    return NextResponse.json({
+      trade,
       marketData,
-      message: `매매 기록이 저장되었습니다. ${
-        emotionTags.length > 0
-          ? `AI가 분석한 감정 태그: ${emotionTags.join(', ')}`
-          : ''
-      } ${
-        marketData.currentPrice
-          ? `실시간 종가: ${marketData.currentPrice.toLocaleString()}${
-              currency === 'USD' ? '$' : '원'
-            }`
-          : '종가 데이터 수집 실패'
-      }`,
-    };
-
-    return NextResponse.json(responseData, { status: 201 });
+      emotionTags,
+      aiAnalysis,
+      confidence,
+    });
   } catch (error) {
-    console.error('매매 기록 생성 실패:', error);
+    console.error('매매 기록 저장 실패:', error);
     return NextResponse.json(
-      { error: '매매 기록을 저장하는데 실패했습니다' },
+      { error: '매매 기록 저장에 실패했습니다' },
       { status: 500 }
     );
   }

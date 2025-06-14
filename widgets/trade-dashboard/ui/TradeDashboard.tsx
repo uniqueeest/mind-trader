@@ -46,15 +46,16 @@ interface Trade {
   symbol: string;
   type: 'BUY' | 'SELL';
   date: string;
-  price: number;
+  buyPrice: number;
+  sellPrice?: number;
   quantity: number;
   thoughts: string;
   market: Market;
   currency: Currency;
   emotionTags: string[];
-  profitLoss?: number;
-  currentPrice?: number; // 현재가 추가
-  profitRate?: number; // 수익률 추가
+  profitLoss: number | null;
+  currentPrice?: number;
+  profitRate: number | null;
 }
 
 // TradeForm 데이터 타입
@@ -62,7 +63,8 @@ interface TradeFormData {
   symbol: string;
   type: 'BUY' | 'SELL';
   date: string;
-  price: string;
+  buyPrice?: string;
+  sellPrice?: string;
   quantity: string;
   thoughts: string;
   market: Market;
@@ -109,7 +111,7 @@ export function TradeDashboard() {
           symbol: apiTrade.symbol,
           type: apiTrade.type,
           date: apiTrade.date, // API에서 이미 YYYY-MM-DD 형식으로 변환됨
-          price: apiTrade.price,
+          buyPrice: apiTrade.price,
           quantity: apiTrade.quantity,
           thoughts: apiTrade.thoughts || '',
           market: apiTrade.market,
@@ -168,7 +170,7 @@ export function TradeDashboard() {
         symbol: data.trade.symbol,
         type: data.trade.type,
         date: data.trade.date,
-        price: data.trade.price,
+        buyPrice: data.trade.price,
         quantity: data.trade.quantity,
         thoughts: data.trade.thoughts || '',
         market: data.trade.market,

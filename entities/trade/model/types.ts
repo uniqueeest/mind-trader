@@ -5,7 +5,8 @@ export interface Trade extends BaseEntity {
   symbol: string; // 종목명
   type: TradeType; // 매수/매도 구분
   date: string; // 매매 날짜 (YYYY-MM-DD)
-  price: number; // 매매 가격
+  buyPrice: number; // 매수가
+  sellPrice?: number; // 매도가
   quantity: number; // 수량
   thoughts: string; // 매매 당시 생각 (저널링)
   emotionTags: string[]; // AI 분석 감성 태그
@@ -25,7 +26,8 @@ export interface TradeFormData {
   symbol: string;
   type: TradeType;
   date: string;
-  price: string;
+  buyPrice?: string;
+  sellPrice?: string;
   quantity: string;
   thoughts: string;
 }

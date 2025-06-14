@@ -15,15 +15,16 @@ interface Trade {
   symbol: string;
   type: 'BUY' | 'SELL';
   date: string;
-  price: number;
+  buyPrice: number;
+  sellPrice?: number;
   quantity: number;
   thoughts: string;
   market: Market;
   currency: Currency;
   emotionTags: string[];
-  profitLoss?: number;
+  profitLoss: number | null;
   currentPrice?: number;
-  profitRate?: number;
+  profitRate: number | null;
 }
 
 // TradeForm 데이터 타입
@@ -31,7 +32,8 @@ interface TradeFormData {
   symbol: string;
   type: 'BUY' | 'SELL';
   date: string;
-  price: string;
+  buyPrice?: string;
+  sellPrice?: string;
   quantity: string;
   thoughts: string;
   market: Market;
@@ -91,7 +93,8 @@ export function KoStockDashboard() {
           ...formData,
           market: 'KR', // 한국 시장 고정
           currency: 'KRW', // 원화 고정
-          price: parseFloat(formData.price),
+          buyPrice: parseFloat(formData.buyPrice || '0'),
+          sellPrice: parseFloat(formData.sellPrice || '0'),
           quantity: parseInt(formData.quantity),
         }),
       });
@@ -106,13 +109,16 @@ export function KoStockDashboard() {
           symbol: data.trade.symbol,
           type: data.trade.type,
           date: data.trade.date,
-          price: data.trade.price,
+          buyPrice: data.trade.buyPrice,
+          sellPrice: data.trade.sellPrice,
           quantity: data.trade.quantity,
           thoughts: data.trade.thoughts,
           market: 'KR',
           currency: 'KRW',
           emotionTags: data.trade.emotionTags || [],
+          profitLoss: data.trade.profitLoss,
           currentPrice: data.marketData?.currentPrice,
+          profitRate: data.trade.profitRate,
         };
 
         setTrades((prev) => [newTrade, ...prev]);
@@ -130,13 +136,13 @@ export function KoStockDashboard() {
   // 한국 주식 통계 계산
   const koStats = {
     totalTrades: trades.length,
-    totalValue: trades.reduce((sum, t) => sum + t.price * t.quantity, 0),
+    totalValue: trades.reduce((sum, t) => sum + t.buyPrice * t.quantity, 0),
     totalProfit: trades.reduce((sum, t) => {
       if (!t.currentPrice) return sum;
       const profitLoss =
         t.type === 'BUY'
-          ? (t.currentPrice - t.price) * t.quantity
-          : (t.price - t.currentPrice) * t.quantity;
+          ? (t.currentPrice - t.buyPrice) * t.quantity
+          : (t.buyPrice - t.currentPrice) * t.quantity;
       return sum + profitLoss;
     }, 0),
     recentEmotionTags: [

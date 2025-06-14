@@ -26,15 +26,16 @@ interface Trade {
   symbol: string;
   type: 'BUY' | 'SELL';
   date: string;
-  price: number;
+  buyPrice: number;
+  sellPrice?: number;
   quantity: number;
   thoughts: string;
   market: Market;
   currency: Currency;
   emotionTags: string[];
-  profitLoss?: number; // 수익/손실
-  currentPrice?: number; // KIS API에서 가져온 현재가
-  profitRate?: number; // 수익률 (%)
+  profitLoss: number | null;
+  currentPrice?: number;
+  profitRate: number | null;
 }
 
 interface TradeListProps {
@@ -44,118 +45,132 @@ interface TradeListProps {
 
 // 개별 매매 기록 컴포넌트
 function TradeItem({ trade }: { trade: Trade }) {
-  console.log(trade);
+  const currentMarketConfig = MARKET_CONFIG[trade.market];
+  const isBuy = trade.type === 'BUY';
+  const isSell = trade.type === 'SELL';
 
   return (
-    <Card className="mb-3 hover:shadow-md transition-shadow">
-      <CardContent className="p-4">
-        <div className="flex justify-between items-start mb-3">
-          <div>
-            <div className="flex items-center gap-3 mb-2">
-              <h4 className="text-lg font-semibold">{trade.symbol}</h4>
-              <Badge
-                variant={trade.type === 'BUY' ? 'default' : 'secondary'}
-                className={
-                  trade.type === 'BUY'
-                    ? 'bg-blue-100 text-blue-800'
-                    : 'bg-red-100 text-red-800'
-                }
-              >
-                {trade.type === 'BUY' ? '매수' : '매도'}
-              </Badge>
+    <AccordionItem value={trade.id}>
+      <AccordionTrigger className="hover:no-underline">
+        <div className="flex items-center justify-between w-full pr-4">
+          <div className="flex items-center gap-3">
+            <div
+              className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                isBuy ? 'bg-blue-100' : 'bg-green-100'
+              }`}
+            >
+              <span className="text-lg">{isBuy ? '📈' : '📉'}</span>
             </div>
-            <div className="text-sm text-gray-600">
-              <span>매매가: {formatCurrency(trade.price, trade.currency)}</span>
-              <span className="mx-2">•</span>
-              <span>수량: {trade.quantity}주</span>
-              {trade.currentPrice && (
-                <>
-                  <span className="mx-2">•</span>
-                  <span className="text-blue-600 font-medium">
-                    현재가: {formatCurrency(trade.currentPrice, trade.currency)}
-                  </span>
-                </>
-              )}
-              <span className="mx-2">•</span>
-              <span className="text-xs bg-gray-100 px-2 py-1 rounded">
-                {MARKET_CONFIG[trade.market].label}
-              </span>
+            <div className="text-left">
+              <div className="font-medium">{trade.symbol}</div>
+              <div className="text-sm text-gray-500">
+                {trade.date} • {trade.quantity}주
+              </div>
             </div>
           </div>
-
-          {/* 수익/손실 표시 (현재가 기준) */}
-          {trade.currentPrice && (
-            <div className="text-right">
-              {(() => {
-                const totalValue = trade.price * trade.quantity;
-                const currentValue = trade.currentPrice * trade.quantity;
-                const profitLoss =
-                  trade.type === 'BUY'
-                    ? currentValue - totalValue // 매수: 현재가치 - 매수가치
-                    : totalValue - currentValue; // 매도: 매도가치 - 현재가치
-                const profitRate = (profitLoss / totalValue) * 100;
-
-                return (
-                  <div
-                    className={`${
-                      profitLoss >= 0 ? 'text-green-600' : 'text-red-600'
-                    }`}
-                  >
-                    <div className="text-base font-semibold">
-                      {profitLoss >= 0 ? '+' : ''}
-                      {formatCurrency(profitLoss, trade.currency)}
-                    </div>
-                    <div className="text-xs">
-                      ({profitLoss >= 0 ? '+' : ''}
-                      {profitRate.toFixed(1)}%)
-                    </div>
-                    <div className="text-xs text-gray-500 mt-1">
-                      평가금액: {formatCurrency(currentValue, trade.currency)}
-                    </div>
-                  </div>
-                );
-              })()}
+          <div className="text-right">
+            <div className="font-medium">
+              {isBuy ? (
+                <>
+                  매수가: {currentMarketConfig.symbol}
+                  {trade.buyPrice.toLocaleString()}
+                </>
+              ) : (
+                <>
+                  매수가: {currentMarketConfig.symbol}
+                  {trade.buyPrice.toLocaleString()}
+                  <br />
+                  매도가: {currentMarketConfig.symbol}
+                  {trade.sellPrice?.toLocaleString()}
+                </>
+              )}
+            </div>
+            {trade.profitLoss !== null && trade.profitRate !== null && (
+              <div
+                className={`text-sm ${
+                  trade.profitLoss >= 0 ? 'text-green-600' : 'text-red-600'
+                }`}
+              >
+                {trade.profitLoss >= 0 ? '+' : ''}
+                {formatCurrency(trade.profitLoss, trade.currency)} (
+                {trade.profitRate >= 0 ? '+' : ''}
+                {trade.profitRate.toFixed(1)}%)
+              </div>
+            )}
+          </div>
+        </div>
+      </AccordionTrigger>
+      <AccordionContent>
+        <div className="space-y-4 p-4 bg-gray-50 rounded-lg">
+          {/* 매매 당시 생각 */}
+          {trade.thoughts && (
+            <div>
+              <h4 className="text-sm font-medium text-gray-700 mb-2">
+                💭 매매 당시 생각
+              </h4>
+              <p className="text-sm text-gray-600 whitespace-pre-wrap">
+                {trade.thoughts}
+              </p>
             </div>
           )}
 
-          {/* KIS API 데이터가 없는 경우 */}
-          {!trade.currentPrice && (
-            <div className="text-right text-gray-400">
-              <div className="text-xs">현재가 정보 없음</div>
-              <div className="text-xs">
-                매매금액:{' '}
-                {formatCurrency(trade.price * trade.quantity, trade.currency)}
+          {/* AI 감성 태그 */}
+          {trade.emotionTags && trade.emotionTags.length > 0 && (
+            <div>
+              <h4 className="text-sm font-medium text-gray-700 mb-2">
+                🏷️ AI 감성 태그
+              </h4>
+              <div className="flex flex-wrap gap-1">
+                {trade.emotionTags.map((tag) => (
+                  <Badge
+                    key={tag}
+                    variant="secondary"
+                    className="bg-blue-100 text-blue-800"
+                  >
+                    {tag}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* 현재가 정보 (매수 시에만) */}
+          {isBuy && trade.currentPrice && (
+            <div>
+              <h4 className="text-sm font-medium text-gray-700 mb-2">
+                📊 현재가 정보
+              </h4>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm text-gray-500">현재가</p>
+                  <p className="font-medium">
+                    {currentMarketConfig.symbol}
+                    {trade.currentPrice.toLocaleString()}
+                  </p>
+                </div>
+                {trade.profitLoss !== null && trade.profitRate !== null && (
+                  <div>
+                    <p className="text-sm text-gray-500">평가손익</p>
+                    <p
+                      className={`font-medium ${
+                        trade.profitLoss >= 0
+                          ? 'text-green-600'
+                          : 'text-red-600'
+                      }`}
+                    >
+                      {trade.profitLoss >= 0 ? '+' : ''}
+                      {formatCurrency(trade.profitLoss, trade.currency)} (
+                      {trade.profitRate >= 0 ? '+' : ''}
+                      {trade.profitRate.toFixed(1)}%)
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
           )}
         </div>
-
-        {/* AI 감성 태그 */}
-        <div className="mb-3">
-          <div className="flex flex-wrap gap-2">
-            {trade.emotionTags.map((tag, index) => (
-              <Badge
-                key={index}
-                variant="outline"
-                className="bg-purple-50 text-purple-700 border-purple-200 text-xs"
-              >
-                {tag}
-              </Badge>
-            ))}
-          </div>
-        </div>
-
-        {/* 매매 당시 생각 */}
-        <div className="bg-gray-50 rounded-lg p-3">
-          <div className="text-xs font-medium text-gray-700 mb-1">
-            💭 매매 당시의 생각
-          </div>
-          <p className="text-sm text-gray-800 leading-relaxed">
-            {trade.thoughts}
-          </p>
-        </div>
-      </CardContent>
-    </Card>
+      </AccordionContent>
+    </AccordionItem>
   );
 }
 
@@ -164,11 +179,19 @@ function DateGroupHeader({ group }: { group: GroupedTrade }) {
   // 통화별 총액 계산
   const totalByKRW = group.trades
     .filter((trade) => trade.currency === 'KRW')
-    .reduce((sum, trade) => sum + trade.price * trade.quantity, 0);
+    .reduce((sum, trade) => {
+      const price =
+        trade.type === 'BUY' ? trade.buyPrice : trade.sellPrice || 0;
+      return sum + price * trade.quantity;
+    }, 0);
 
   const totalByUSD = group.trades
     .filter((trade) => trade.currency === 'USD')
-    .reduce((sum, trade) => sum + trade.price * trade.quantity, 0);
+    .reduce((sum, trade) => {
+      const price =
+        trade.type === 'BUY' ? trade.buyPrice : trade.sellPrice || 0;
+      return sum + price * trade.quantity;
+    }, 0);
 
   const profitByKRW = group.trades
     .filter((trade) => trade.currency === 'KRW')

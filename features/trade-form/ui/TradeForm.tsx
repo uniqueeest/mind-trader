@@ -25,7 +25,8 @@ interface TradeFormData {
   symbol: string;
   type: 'BUY' | 'SELL';
   date: string;
-  price: string;
+  buyPrice?: string;
+  sellPrice?: string;
   quantity: string;
   thoughts: string;
   market: 'KR' | 'US';
@@ -49,7 +50,8 @@ export function TradeForm({
     symbol: '',
     type: 'BUY',
     date: new Date().toISOString().split('T')[0],
-    price: '',
+    buyPrice: '',
+    sellPrice: '',
     quantity: '',
     thoughts: '',
     market: market,
@@ -71,7 +73,8 @@ export function TradeForm({
         symbol: '',
         type: 'BUY',
         date: new Date().toISOString().split('T')[0],
-        price: '',
+        buyPrice: '',
+        sellPrice: '',
         quantity: '',
         thoughts: '',
         market: market,
@@ -152,10 +155,10 @@ export function TradeForm({
         setPriceError(null);
 
         // 자동으로 가격 필드에 조회된 종가 입력 (선택사항)
-        if (!formData.price) {
+        if (formData.type === 'BUY' && !formData.buyPrice) {
           setFormData((prev) => ({
             ...prev,
-            price: data.price.toString(),
+            buyPrice: data.price.toString(),
           }));
         }
       } else {
@@ -171,7 +174,8 @@ export function TradeForm({
     formData.symbol,
     formData.market,
     formData.date,
-    formData.price,
+    formData.type,
+    formData.buyPrice,
     lastQueriedSymbol,
     currentPrice,
   ]);
@@ -245,36 +249,38 @@ export function TradeForm({
                   </div>
                 )}
               </div>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={fetchCurrentPrice}
-                disabled={
-                  !formData.symbol.trim() ||
-                  priceLoading ||
-                  lastQueriedSymbol ===
-                    `${formData.symbol.trim()}-${formData.market}-${
-                      formData.date || 'current'
-                    }`
-                }
-                className="px-3"
-              >
-                {priceLoading
-                  ? '조회중'
-                  : lastQueriedSymbol ===
-                    `${formData.symbol.trim()}-${formData.market}-${
-                      formData.date || 'current'
-                    }`
-                  ? '조회완료'
-                  : isDateToday
-                  ? '현재가 조회'
-                  : '종가 조회'}
-              </Button>
+              {formData.type === 'BUY' && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={fetchCurrentPrice}
+                  disabled={
+                    !formData.symbol.trim() ||
+                    priceLoading ||
+                    lastQueriedSymbol ===
+                      `${formData.symbol.trim()}-${formData.market}-${
+                        formData.date || 'current'
+                      }`
+                  }
+                  className="px-3"
+                >
+                  {priceLoading
+                    ? '조회중'
+                    : lastQueriedSymbol ===
+                      `${formData.symbol.trim()}-${formData.market}-${
+                        formData.date || 'current'
+                      }`
+                    ? '조회완료'
+                    : isDateToday
+                    ? '현재가 조회'
+                    : '종가 조회'}
+                </Button>
+              )}
             </div>
 
-            {/* 종가 정보 표시 */}
-            {currentPrice && (
+            {/* 종가 정보 표시 (매수 시에만) */}
+            {formData.type === 'BUY' && currentPrice && (
               <div className="bg-green-50 border border-green-200 rounded-lg p-3">
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium text-green-800">
@@ -328,26 +334,61 @@ export function TradeForm({
 
           {/* 가격, 수량 */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="price">
-                매매 가격 ({currentMarketConfig.symbol})
-              </Label>
-              <Input
-                id="price"
-                type="number"
-                step={currentMarketConfig.priceStep}
-                min={currentMarketConfig.minPrice}
-                placeholder={formData.market === 'KR' ? '50000' : '150.25'}
-                value={formData.price}
-                onChange={handleChange('price')}
-                required
-              />
-              <p className="text-xs text-gray-500">
-                {formData.market === 'KR'
-                  ? '원화 단위로 입력 (예: 50000)'
-                  : '달러 단위로 입력 (예: 150.25)'}
-              </p>
-            </div>
+            {formData.type === 'BUY' ? (
+              <div className="space-y-2">
+                <Label htmlFor="buyPrice">
+                  매수가 ({currentMarketConfig.symbol})
+                </Label>
+                <Input
+                  id="buyPrice"
+                  type="number"
+                  step={currentMarketConfig.priceStep}
+                  min={currentMarketConfig.minPrice}
+                  placeholder={formData.market === 'KR' ? '50000' : '150.25'}
+                  value={formData.buyPrice}
+                  onChange={handleChange('buyPrice')}
+                  required
+                />
+                <p className="text-xs text-gray-500">
+                  {formData.market === 'KR'
+                    ? '원화 단위로 입력 (예: 50000)'
+                    : '달러 단위로 입력 (예: 150.25)'}
+                </p>
+              </div>
+            ) : (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="buyPrice">
+                    매수가 ({currentMarketConfig.symbol})
+                  </Label>
+                  <Input
+                    id="buyPrice"
+                    type="number"
+                    step={currentMarketConfig.priceStep}
+                    min={currentMarketConfig.minPrice}
+                    placeholder={formData.market === 'KR' ? '50000' : '150.25'}
+                    value={formData.buyPrice}
+                    onChange={handleChange('buyPrice')}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="sellPrice">
+                    매도가 ({currentMarketConfig.symbol})
+                  </Label>
+                  <Input
+                    id="sellPrice"
+                    type="number"
+                    step={currentMarketConfig.priceStep}
+                    min={currentMarketConfig.minPrice}
+                    placeholder={formData.market === 'KR' ? '50000' : '150.25'}
+                    value={formData.sellPrice}
+                    onChange={handleChange('sellPrice')}
+                    required
+                  />
+                </div>
+              </>
+            )}
 
             <div className="space-y-2">
               <Label htmlFor="quantity">수량</Label>
@@ -368,27 +409,23 @@ export function TradeForm({
               htmlFor="thoughts"
               className="text-base font-semibold text-blue-700"
             >
-              💭 매매의 순간, 나의 생각은?
+              💭 매매 당시 생각
             </Label>
             <Textarea
               id="thoughts"
-              placeholder="예: XX 뉴스를 보고 급등할 것 같아서 추격 매수했다. 놓칠까 봐 두려웠다..."
-              className="min-h-[120px] resize-none"
+              placeholder="매매 결정을 내린 이유, 당시의 감정, 시장 상황 등을 자유롭게 기록해보세요"
               value={formData.thoughts}
               onChange={handleChange('thoughts')}
-              required
+              className="min-h-[120px]"
             />
+            <p className="text-xs text-gray-500">
+              AI가 분석하여 감성 태그를 자동으로 생성합니다
+            </p>
           </div>
 
+          {/* 제출 버튼 */}
           <Button type="submit" className="w-full" disabled={isLoading}>
-            {isLoading ? (
-              <div className="flex items-center gap-2">
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                AI 분석 중...
-              </div>
-            ) : (
-              '💭 AI 분석 + 저장'
-            )}
+            {isLoading ? '저장 중...' : '매매 기록 저장'}
           </Button>
         </form>
       </CardContent>
