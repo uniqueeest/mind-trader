@@ -14,15 +14,16 @@ interface Trade {
   symbol: string;
   type: 'BUY' | 'SELL';
   date: string;
-  price: number;
+  buyPrice: number;
+  sellPrice?: number;
   quantity: number;
   thoughts: string;
   market: Market;
   currency: Currency;
   emotionTags: string[];
-  profitLoss?: number;
+  profitLoss: number | null;
   currentPrice?: number;
-  profitRate?: number;
+  profitRate: number | null;
 }
 
 export function OverviewDashboard() {
@@ -66,10 +67,10 @@ export function OverviewDashboard() {
     usTrades: trades.filter((t) => t.market === 'US').length,
     totalValueKRW: trades
       .filter((t) => t.currency === 'KRW')
-      .reduce((sum, t) => sum + t.price * t.quantity, 0),
+      .reduce((sum, t) => sum + t.buyPrice * t.quantity, 0),
     totalValueUSD: trades
       .filter((t) => t.currency === 'USD')
-      .reduce((sum, t) => sum + t.price * t.quantity, 0),
+      .reduce((sum, t) => sum + t.buyPrice * t.quantity, 0),
     recentEmotionTags: [
       ...new Set(trades.flatMap((t) => t.emotionTags).slice(0, 5)),
     ],
