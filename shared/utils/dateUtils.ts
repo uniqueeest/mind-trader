@@ -17,13 +17,16 @@ interface Trade {
   symbol: string;
   type: 'BUY' | 'SELL';
   date: string;
-  price: number;
+  buyPrice: number;
+  sellPrice?: number;
   quantity: number;
   thoughts: string;
   market: Market;
   currency: Currency;
   emotionTags: string[];
-  profitLoss?: number;
+  profitLoss: number | null;
+  profitRate: number | null;
+  currentPrice?: number;
 }
 
 export interface GroupedTrade {
@@ -60,7 +63,7 @@ export function groupTradesByDate(trades: Trade[]): GroupedTrade[] {
         0
       );
       const totalVolume = trades.reduce(
-        (sum, trade) => sum + trade.price * trade.quantity,
+        (sum, trade) => sum + trade.buyPrice * trade.quantity,
         0
       );
 
