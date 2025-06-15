@@ -8,17 +8,10 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
-import {
-  groupTradesByDate,
-  getKoreanDay,
-  type GroupedTrade,
-} from '@/shared/utils/dateUtils';
-import {
-  formatCurrency,
-  MARKET_CONFIG,
-  type Currency,
-  type Market,
-} from '@/shared/types';
+import { groupTradesByDate, type GroupedTrade } from '@/shared/utils/dateUtils';
+import { formatCurrency } from '../utils/format';
+import { MARKET_CONFIG } from '../model/market';
+import type { Currency, Market } from '@/entities/trade/model/types';
 
 // Trade 타입 정의 (KIS API 데이터 포함)
 interface Trade {
@@ -55,11 +48,11 @@ function TradeItem({ trade }: { trade: Trade }) {
         <div className="flex items-center justify-between w-full pr-4">
           <div className="flex items-center gap-3">
             <div
-              className={`w-8 h-8 rounded-full flex items-center justify-center ${
+              className={`w-12 h-12 rounded-full flex items-center justify-center ${
                 isBuy ? 'bg-blue-100' : 'bg-green-100'
               }`}
             >
-              <span className="text-lg">{isBuy ? '📈' : '📉'}</span>
+              <span className="text-xs">{isBuy ? 'BUY' : 'SELL'}</span>
             </div>
             <div className="text-left">
               <div className="font-medium">{trade.symbol}</div>
