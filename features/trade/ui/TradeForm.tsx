@@ -19,7 +19,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { MARKET_CONFIG, type Market, type Currency } from '@/shared/types';
+import { MARKET_CONFIG } from '@/features/trade/model/market';
+import type { Market, Currency } from '@/shared/types/trade';
 
 interface TradeFormData {
   symbol: string;
