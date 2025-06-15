@@ -1,7 +1,4 @@
-// 거래 관련 타입 정의
-export type TradeType = 'BUY' | 'SELL';
-export type Currency = 'KRW' | 'USD';
-export type Market = 'KR' | 'US';
+import type { Currency, Market } from '@/entities/trade/model/types';
 
 export type BaseEntity = {
   id: string;

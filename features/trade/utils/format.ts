@@ -1,4 +1,4 @@
-import type { Currency } from '../types';
+import type { Currency } from '@/entities/trade/model/types';
 import { MARKET_CONFIG } from '../model/market';
 
 // 통화 포맷팅 유틸리티

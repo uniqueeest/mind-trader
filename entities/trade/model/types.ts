@@ -1,4 +1,7 @@
-import type { Market, Currency } from '@/shared/types/trade';
+// 거래 관련 타입 정의
+export type TradeType = 'BUY' | 'SELL';
+export type Currency = 'KRW' | 'USD';
+export type Market = 'KR' | 'US';
 
 // 매매 기록 엔티티
 export type Trade = {

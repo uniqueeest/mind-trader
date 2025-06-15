@@ -1,4 +1,4 @@
-import type { Currency, Market } from '../types';
+import type { Currency, Market } from '@/entities/trade/model/types';
 
 // 시장별 설정 타입
 export type MarketConfig = {

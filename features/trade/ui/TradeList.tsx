@@ -11,7 +11,7 @@ import {
 import { groupTradesByDate, type GroupedTrade } from '@/shared/utils/dateUtils';
 import { formatCurrency } from '../utils/format';
 import { MARKET_CONFIG } from '../model/market';
-import type { Currency, Market } from '../types';
+import type { Currency, Market } from '@/entities/trade/model/types';
 
 // Trade 타입 정의 (KIS API 데이터 포함)
 interface Trade {
