@@ -20,7 +20,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { MARKET_CONFIG } from '@/features/trade/model/market';
-import type { Market, Currency } from '@/shared/types/trade';
+import type { Market, Currency } from '@/features/trade/types';
 
 interface TradeFormData {
   symbol: string;
