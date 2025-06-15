@@ -1,35 +1,21 @@
-// dayjs를 사용한 날짜 관련 유틸리티 함수들
 import dayjs from 'dayjs';
-import 'dayjs/locale/ko'; // 한국어 로케일
+import 'dayjs/locale/ko';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import isSameOrBefore from 'dayjs/plugin/isSameOrBefore';
 import isSameOrAfter from 'dayjs/plugin/isSameOrAfter';
-import { type Currency, type Market } from '@/shared/types';
+import type { Trade } from '@/entities/trade/model/types';
 
-// 플러그인 등록
-dayjs.extend(relativeTime);
-dayjs.extend(isSameOrBefore);
-dayjs.extend(isSameOrAfter);
-dayjs.locale('ko'); // 한국어 설정
+export const setupDayjs = () => {
+  dayjs.extend(relativeTime);
+  dayjs.extend(isSameOrBefore);
+  dayjs.extend(isSameOrAfter);
+  dayjs.locale('ko');
+};
 
-interface Trade {
-  id: string;
-  symbol: string;
-  type: 'BUY' | 'SELL';
-  date: string;
-  buyPrice: number;
-  sellPrice?: number;
-  quantity: number;
-  thoughts: string;
-  market: Market;
-  currency: Currency;
-  emotionTags: string[];
-  profitLoss: number | null;
-  profitRate: number | null;
-  currentPrice?: number;
-}
+// 앱 시작 시 한 번만 실행
+setupDayjs();
 
-export interface GroupedTrade {
+export type GroupedTrade = {
   date: string;
   dateFormatted: string;
   trades: Trade[];
@@ -38,7 +24,7 @@ export interface GroupedTrade {
   dayOfWeek: string;
   isToday: boolean;
   isYesterday: boolean;
-}
+};
 
 /**
  * 매매 기록을 날짜별로 그룹핑하는 함수
@@ -165,3 +151,11 @@ export function getThisWeekTrades(trades: Trade[]): Trade[] {
     return tradeDate.isAfter(startOfWeek) && tradeDate.isBefore(endOfWeek);
   });
 }
+
+export const formatDateTime = (date: string | Date) => {
+  return dayjs(date).format('YYYY-MM-DD HH:mm:ss');
+};
+
+export const fromNow = (date: string | Date) => {
+  return dayjs(date).fromNow();
+};
