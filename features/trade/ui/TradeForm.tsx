@@ -21,6 +21,18 @@ import {
 } from '@/components/ui/select';
 import { MARKET_CONFIG } from '@/features/trade/model/market';
 import type { Market, Currency } from '@/entities/trade/model/types';
+import { getPriceStatus } from '../utils/getPriceStatus';
+import { useStockPriceLookup } from '@/features/trade/hooks/useStockPriceLookup';
+import { Calendar } from '@/components/ui/calendar';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import dayjs from 'dayjs';
+import { CalendarIcon } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { isTradingDay } from '../utils/tradeCalculations';
 
 interface TradeFormData {
   symbol: string;
@@ -59,11 +71,9 @@ export function TradeForm({
     currency: currency,
   });
 
-  // 실시간 종가 조회 상태
-  const [currentPrice, setCurrentPrice] = useState<number | null>(null);
-  const [priceLoading, setPriceLoading] = useState(false);
-  const [priceError, setPriceError] = useState<string | null>(null);
-  const [lastQueriedSymbol, setLastQueriedSymbol] = useState<string>(''); // 마지막 조회한 티커+날짜
+  // useStockPriceLookup 훅 사용
+  const { currentPrice, priceLoading, priceError, fetchPrice, clearCache } =
+    useStockPriceLookup();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -81,10 +91,8 @@ export function TradeForm({
         market: market,
         currency: currency,
       });
-      // 가격 상태도 리셋
-      setCurrentPrice(null);
-      setPriceError(null);
-      setLastQueriedSymbol('');
+      // 캐시 초기화
+      clearCache();
     } catch (error) {
       console.error('매매 기록 저장 실패:', error);
     }
@@ -100,9 +108,7 @@ export function TradeForm({
 
       // 종목명 또는 날짜 변경 시 캐시 초기화
       if (field === 'symbol' || field === 'date') {
-        setCurrentPrice(null);
-        setPriceError(null);
-        setLastQueriedSymbol('');
+        clearCache();
       }
     };
 
@@ -114,71 +120,21 @@ export function TradeForm({
   };
 
   // 종가 조회 함수 (날짜 포함)
-  const fetchCurrentPrice = useCallback(async () => {
+  const handlePriceLookup = useCallback(async () => {
     const symbol = formData.symbol.trim();
-    const market = formData.market;
-    const date = formData.date;
-
     if (!symbol) return;
 
-    // 캐시 키 생성 (종목+시장+날짜)
-    const cacheKey = `${symbol}-${market}-${date || 'current'}`;
-    if (lastQueriedSymbol === cacheKey && currentPrice) {
-      console.log(`📋 캐시된 데이터 사용: ${symbol}`);
-      return;
-    }
-
-    setPriceLoading(true);
-    setPriceError(null);
-
-    try {
-      const response = await fetch('/api/stock-price', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          symbol,
-          market,
-          date, // 날짜 전달
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error('종가 조회에 실패했습니다');
-      }
-
-      const data = await response.json();
-
-      if (data.price) {
-        setCurrentPrice(data.price);
-        setLastQueriedSymbol(cacheKey); // 캐시 키 저장
-        setPriceError(null);
-
-        // 자동으로 가격 필드에 조회된 종가 입력 (선택사항)
-        if (formData.type === 'BUY' && !formData.buyPrice) {
-          setFormData((prev) => ({
-            ...prev,
-            buyPrice: data.price.toString(),
-          }));
-        }
-      } else {
-        setPriceError('종가 정보를 찾을 수 없습니다');
-      }
-    } catch (error) {
-      console.error('종가 조회 오류:', error);
-      setPriceError('종가 조회 중 오류가 발생했습니다');
-    } finally {
-      setPriceLoading(false);
-    }
+    await fetchPrice({
+      symbol,
+      market: formData.market,
+      date: formData.date,
+    });
   }, [
     formData.symbol,
     formData.market,
     formData.date,
-    formData.type,
-    formData.buyPrice,
-    lastQueriedSymbol,
     currentPrice,
+    fetchPrice,
   ]);
 
   const currentMarketConfig = MARKET_CONFIG[formData.market];
@@ -213,17 +169,42 @@ export function TradeForm({
           {/* 매매 날짜 (최상단으로 이동) */}
           <div className="space-y-2">
             <Label htmlFor="date" className="text-base font-semibold">
-              📅 매매 날짜
+              매매 날짜
             </Label>
-            <Input
-              id="date"
-              type="date"
-              value={formData.date}
-              onChange={handleChange('date')}
-              max={new Date().toISOString().split('T')[0]}
-              required
-              className="text-base"
-            />
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    'w-full justify-start text-left font-normal',
+                    !formData.date && 'text-muted-foreground'
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {formData.date ? (
+                    dayjs(formData.date).format('YYYY년 MM월 DD일')
+                  ) : (
+                    <span>날짜를 선택하세요</span>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={dayjs(formData.date).toDate()}
+                  onSelect={(date) => {
+                    if (date) {
+                      setFormData((prev) => ({
+                        ...prev,
+                        date: dayjs(date).format('YYYY-MM-DD'),
+                      }));
+                      clearCache();
+                    }
+                  }}
+                  disabled={(date) => !isTradingDay(date)}
+                />
+              </PopoverContent>
+            </Popover>
             <p className="text-xs text-gray-500">
               {isDateToday
                 ? '오늘 날짜로 설정되었습니다 (현재가 조회)'
@@ -255,27 +236,15 @@ export function TradeForm({
                   type="button"
                   variant="outline"
                   size="sm"
-                  onClick={fetchCurrentPrice}
-                  disabled={
-                    !formData.symbol.trim() ||
-                    priceLoading ||
-                    lastQueriedSymbol ===
-                      `${formData.symbol.trim()}-${formData.market}-${
-                        formData.date || 'current'
-                      }`
-                  }
+                  onClick={handlePriceLookup}
+                  disabled={!formData.symbol.trim() || priceLoading}
                   className="px-3"
                 >
-                  {priceLoading
-                    ? '조회중'
-                    : lastQueriedSymbol ===
-                      `${formData.symbol.trim()}-${formData.market}-${
-                        formData.date || 'current'
-                      }`
-                    ? '조회완료'
-                    : isDateToday
-                    ? '현재가 조회'
-                    : '종가 조회'}
+                  {getPriceStatus(
+                    formData,
+                    priceLoading,
+                    currentPrice ? 'cached' : ''
+                  )}
                 </Button>
               )}
             </div>
@@ -410,7 +379,7 @@ export function TradeForm({
               htmlFor="thoughts"
               className="text-base font-semibold text-blue-700"
             >
-              💭 매매 당시 생각
+              매매 당시 생각
             </Label>
             <Textarea
               id="thoughts"
