@@ -31,7 +31,7 @@ export function KoStockDashboard() {
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
             🇰🇷 한국 주식 매매일지
           </h1>
-          <p className="text-gray-600">
+          <p className="text-gray-600 break-keep">
             국내 증시 매매 경험을 기록하고 AI 감성 분석을 받아보세요
           </p>
         </div>

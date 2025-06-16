@@ -21,7 +21,7 @@ export function OverviewDashboard() {
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
             반갑습니다! 👋
           </h1>
-          <p className="text-gray-600">
+          <p className="text-gray-600 break-keep">
             전체 매매 기록을 한눈에 확인하고, 새로운 매매일지를 작성해보세요.
           </p>
         </div>
@@ -101,7 +101,7 @@ export function OverviewDashboard() {
             <h2 className="text-xl font-semibold text-gray-900">
               📝 새로운 매매일지 작성하기
             </h2>
-            <p className="text-gray-600">
+            <p className="text-gray-600 break-keep">
               오늘의 매매 경험을 기록하고 AI 감성 분석을 받아보세요
             </p>
             <div className="flex justify-center gap-4">
