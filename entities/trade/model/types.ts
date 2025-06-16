@@ -29,17 +29,6 @@ export type MarketData = {
   nasdaqChange: number; // 나스닥 등락률
 };
 
-// 매매 기록 입력 폼 타입
-export type TradeFormData = {
-  symbol: string;
-  type: 'BUY' | 'SELL';
-  date: string;
-  buyPrice?: string;
-  sellPrice?: string;
-  quantity: string;
-  thoughts: string;
-};
-
 // API 모델 타입
 export type TradeModel = {
   id: string;
