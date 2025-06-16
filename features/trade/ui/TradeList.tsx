@@ -11,36 +11,78 @@ import {
 import { groupTradesByDate, type GroupedTrade } from '@/shared/utils/dateUtils';
 import { formatCurrency } from '../utils/format';
 import { MARKET_CONFIG } from '../model/market';
-import type { Currency, Market } from '@/entities/trade/model/types';
-
-// Trade 타입 정의 (KIS API 데이터 포함)
-interface Trade {
-  id: string;
-  symbol: string;
-  type: 'BUY' | 'SELL';
-  date: string;
-  buyPrice: number;
-  sellPrice?: number;
-  quantity: number;
-  thoughts: string;
-  market: Market;
-  currency: Currency;
-  emotionTags: string[];
-  profitLoss: number | null;
-  currentPrice?: number;
-  profitRate: number | null;
-}
+import type { Trade } from '@/entities/trade/model/types';
+import {
+  calculateTotalByCurrency,
+  calculateProfitByCurrency,
+} from '../utils/tradeCalculations';
+import { TradeListSkeleton } from './skeleton/TradeListSkeleton';
+import { cn } from '@/lib/utils';
 
 interface TradeListProps {
   trades: Trade[];
   isLoading?: boolean;
 }
 
+export function TradeList({ trades, isLoading = false }: TradeListProps) {
+  const groupedTrades = groupTradesByDate(trades);
+
+  if (isLoading) {
+    return <TradeListSkeleton />;
+  }
+
+  if (trades.length === 0) {
+    return (
+      <Card className="w-full max-w-4xl mx-auto">
+        <CardContent className="p-12 text-center">
+          <div className="text-6xl mb-4">📊</div>
+          <h3 className="text-xl font-semibold mb-2">매매 기록이 없습니다</h3>
+          <p className="text-gray-600">
+            첫 번째 매매 기록을 등록하고 AI 분석으로 나의 투자 심리를
+            알아보세요!
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <section className="w-full max-w-4xl mx-auto space-y-6">
+      <div className="mb-6">
+        <h2 className="text-2xl font-bold mb-2">나의 매매 기록</h2>
+        <p className="text-gray-600">
+          총 {trades.length}건의 매매 기록 • AI가 분석한 감성 태그로 패턴을
+          발견해보세요
+        </p>
+      </div>
+      <Accordion type="multiple" className="space-y-4">
+        {groupedTrades.map((group) => (
+          <AccordionItem
+            key={group.date}
+            value={group.date}
+            className="border rounded-lg shadow-sm bg-white"
+          >
+            <AccordionTrigger className="px-6 py-4 hover:no-underline">
+              <DateGroupHeader group={group} />
+            </AccordionTrigger>
+            <AccordionContent className="px-6 pb-4">
+              <div className="space-y-3">
+                {group.trades.map((trade) => (
+                  <TradeItem key={trade.id} trade={trade} />
+                ))}
+              </div>
+            </AccordionContent>
+          </AccordionItem>
+        ))}
+      </Accordion>
+    </section>
+  );
+}
+
 // 개별 매매 기록 컴포넌트
 function TradeItem({ trade }: { trade: Trade }) {
   const currentMarketConfig = MARKET_CONFIG[trade.market];
   const isBuy = trade.type === 'BUY';
-  const isSell = trade.type === 'SELL';
 
   return (
     <AccordionItem value={trade.id}>
@@ -48,9 +90,12 @@ function TradeItem({ trade }: { trade: Trade }) {
         <div className="flex items-center justify-between w-full pr-4">
           <div className="flex items-center gap-3">
             <div
-              className={`w-12 h-12 rounded-full flex items-center justify-center ${
+              className={cn(
+                'flex items-center justify-center',
+                'w-12 h-12',
+                'rounded-full',
                 isBuy ? 'bg-blue-100' : 'bg-green-100'
-              }`}
+              )}
             >
               <span className="text-xs">{isBuy ? 'BUY' : 'SELL'}</span>
             </div>
@@ -80,9 +125,10 @@ function TradeItem({ trade }: { trade: Trade }) {
             </div>
             {trade.profitLoss !== null && trade.profitRate !== null && (
               <div
-                className={`text-sm ${
+                className={cn(
+                  'text-sm',
                   trade.profitLoss >= 0 ? 'text-green-600' : 'text-red-600'
-                }`}
+                )}
               >
                 {trade.profitLoss >= 0 ? '+' : ''}
                 {formatCurrency(trade.profitLoss, trade.currency)} (
@@ -99,7 +145,7 @@ function TradeItem({ trade }: { trade: Trade }) {
           {trade.thoughts && (
             <div>
               <h4 className="text-sm font-medium text-gray-700 mb-2">
-                💭 매매 당시 생각
+                매매 당시 생각
               </h4>
               <p className="text-sm text-gray-600 whitespace-pre-wrap">
                 {trade.thoughts}
@@ -111,7 +157,7 @@ function TradeItem({ trade }: { trade: Trade }) {
           {trade.emotionTags && trade.emotionTags.length > 0 && (
             <div>
               <h4 className="text-sm font-medium text-gray-700 mb-2">
-                🏷️ AI 감성 태그
+                AI 감성 태그
               </h4>
               <div className="flex flex-wrap gap-1">
                 {trade.emotionTags.map((tag) => (
@@ -131,7 +177,7 @@ function TradeItem({ trade }: { trade: Trade }) {
           {isBuy && trade.currentPrice && (
             <div>
               <h4 className="text-sm font-medium text-gray-700 mb-2">
-                📊 현재가 정보
+                현재가 정보
               </h4>
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -145,11 +191,12 @@ function TradeItem({ trade }: { trade: Trade }) {
                   <div>
                     <p className="text-sm text-gray-500">평가손익</p>
                     <p
-                      className={`font-medium ${
+                      className={cn(
+                        'font-medium',
                         trade.profitLoss >= 0
                           ? 'text-green-600'
                           : 'text-red-600'
-                      }`}
+                      )}
                     >
                       {trade.profitLoss >= 0 ? '+' : ''}
                       {formatCurrency(trade.profitLoss, trade.currency)} (
@@ -169,30 +216,10 @@ function TradeItem({ trade }: { trade: Trade }) {
 
 // 날짜별 그룹 헤더 컴포넌트
 function DateGroupHeader({ group }: { group: GroupedTrade }) {
-  // 통화별 총액 계산
-  const totalByKRW = group.trades
-    .filter((trade) => trade.currency === 'KRW')
-    .reduce((sum, trade) => {
-      const price =
-        trade.type === 'BUY' ? trade.buyPrice : trade.sellPrice || 0;
-      return sum + price * trade.quantity;
-    }, 0);
-
-  const totalByUSD = group.trades
-    .filter((trade) => trade.currency === 'USD')
-    .reduce((sum, trade) => {
-      const price =
-        trade.type === 'BUY' ? trade.buyPrice : trade.sellPrice || 0;
-      return sum + price * trade.quantity;
-    }, 0);
-
-  const profitByKRW = group.trades
-    .filter((trade) => trade.currency === 'KRW')
-    .reduce((sum, trade) => sum + (trade.profitLoss || 0), 0);
-
-  const profitByUSD = group.trades
-    .filter((trade) => trade.currency === 'USD')
-    .reduce((sum, trade) => sum + (trade.profitLoss || 0), 0);
+  const totalByKRW = calculateTotalByCurrency(group.trades, 'KRW');
+  const totalByUSD = calculateTotalByCurrency(group.trades, 'USD');
+  const profitByKRW = calculateProfitByCurrency(group.trades, 'KRW');
+  const profitByUSD = calculateProfitByCurrency(group.trades, 'USD');
 
   return (
     <div className="flex justify-between items-center w-full">
@@ -202,13 +229,6 @@ function DateGroupHeader({ group }: { group: GroupedTrade }) {
         <Badge variant="outline" className="text-xs">
           {group.trades.length}건
         </Badge>
-        {/* 오늘/어제 특별 표시 */}
-        {group.isToday && (
-          <Badge className="bg-green-100 text-green-800 text-xs">TODAY</Badge>
-        )}
-        {group.isYesterday && (
-          <Badge className="bg-blue-100 text-blue-800 text-xs">어제</Badge>
-        )}
       </div>
 
       <div className="flex items-center gap-4 text-sm">
@@ -226,92 +246,26 @@ function DateGroupHeader({ group }: { group: GroupedTrade }) {
         <div className="space-x-2">
           {profitByKRW !== 0 && (
             <span
-              className={`font-semibold ${
+              className={cn(
+                'font-semibold',
                 profitByKRW >= 0 ? 'text-green-600' : 'text-red-600'
-              }`}
+              )}
             >
               {formatCurrency(profitByKRW, 'KRW')}
             </span>
           )}
           {profitByUSD !== 0 && (
             <span
-              className={`font-semibold ${
+              className={cn(
+                'font-semibold',
                 profitByUSD >= 0 ? 'text-green-600' : 'text-red-600'
-              }`}
+              )}
             >
               {formatCurrency(profitByUSD, 'USD')}
             </span>
           )}
         </div>
       </div>
-    </div>
-  );
-}
-
-export function TradeList({ trades, isLoading = false }: TradeListProps) {
-  if (isLoading) {
-    return (
-      <div className="w-full max-w-4xl mx-auto space-y-4">
-        {[...Array(3)].map((_, i) => (
-          <Card key={i} className="animate-pulse">
-            <CardContent className="p-6">
-              <div className="h-4 bg-gray-200 rounded mb-2"></div>
-              <div className="h-3 bg-gray-200 rounded w-1/2"></div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-    );
-  }
-
-  if (trades.length === 0) {
-    return (
-      <Card className="w-full max-w-4xl mx-auto">
-        <CardContent className="p-12 text-center">
-          <div className="text-6xl mb-4">📊</div>
-          <h3 className="text-xl font-semibold mb-2">매매 기록이 없습니다</h3>
-          <p className="text-gray-600">
-            첫 번째 매매 기록을 등록하고 AI 분석으로 나의 투자 심리를
-            알아보세요!
-          </p>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  // 날짜별로 그룹핑
-  const groupedTrades = groupTradesByDate(trades);
-
-  return (
-    <div className="w-full max-w-4xl mx-auto space-y-6">
-      <div className="mb-6">
-        <h2 className="text-2xl font-bold mb-2">나의 매매 기록</h2>
-        <p className="text-gray-600">
-          총 {trades.length}건의 매매 기록 • AI가 분석한 감성 태그로 패턴을
-          발견해보세요
-        </p>
-      </div>
-
-      <Accordion type="multiple" className="space-y-4">
-        {groupedTrades.map((group, index) => (
-          <AccordionItem
-            key={group.date}
-            value={group.date}
-            className="border rounded-lg shadow-sm bg-white"
-          >
-            <AccordionTrigger className="px-6 py-4 hover:no-underline">
-              <DateGroupHeader group={group} />
-            </AccordionTrigger>
-            <AccordionContent className="px-6 pb-4">
-              <div className="space-y-3">
-                {group.trades.map((trade) => (
-                  <TradeItem key={trade.id} trade={trade} />
-                ))}
-              </div>
-            </AccordionContent>
-          </AccordionItem>
-        ))}
-      </Accordion>
     </div>
   );
 }
