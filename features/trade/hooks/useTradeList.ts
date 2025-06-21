@@ -1,38 +1,48 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import type { Trade } from '@/entities/trade/model/types';
 import { tradeApi } from '../api/tradeApi';
+import { getCacheKey, getCachedData, setCachedData } from '../model/cache';
 
-export const useTradeList = (market?: 'KR' | 'US') => {
+export function useTradeList(market?: 'KR' | 'US') {
   const [trades, setTrades] = useState<Trade[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
-  useEffect(() => {
-    const fetchTrades = async () => {
-      try {
-        setIsLoading(true);
-        setError(null);
-        const data = await tradeApi.getTrades(market);
-        setTrades(data);
-      } catch (err) {
-        setError(
-          err instanceof Error
-            ? err
-            : new Error('알 수 없는 오류가 발생했습니다')
-        );
-        console.error('매매 기록 조회 실패:', err);
-      } finally {
-        setIsLoading(false);
-      }
-    };
+  const fetchTrades = useCallback(async () => {
+    const cacheKey = getCacheKey(market);
+    const cachedData = getCachedData(cacheKey);
 
-    fetchTrades();
+    if (cachedData) {
+      setTrades(cachedData);
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      setError(null);
+      const data = await tradeApi.getTrades(market);
+
+      setCachedData(cacheKey, data);
+      setTrades(data);
+    } catch (err) {
+      setError(
+        err instanceof Error ? err : new Error('알 수 없는 오류가 발생했습니다')
+      );
+      console.error('매매 기록 조회 실패:', err);
+    } finally {
+      setIsLoading(false);
+    }
   }, [market]);
+
+  useEffect(() => {
+    fetchTrades();
+  }, [fetchTrades]);
 
   return {
     trades,
     isLoading,
     error,
     setTrades,
+    refetch: fetchTrades,
   };
-};
+}

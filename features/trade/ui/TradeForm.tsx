@@ -168,9 +168,7 @@ export function TradeForm({
 
           {/* 매매 날짜 (최상단으로 이동) */}
           <div className="space-y-2">
-            <Label htmlFor="date" className="text-base font-semibold">
-              매매 날짜
-            </Label>
+            <Label htmlFor="date">매매 날짜</Label>
             <Popover>
               <PopoverTrigger asChild>
                 <Button
@@ -223,7 +221,10 @@ export function TradeForm({
                   value={formData.symbol}
                   onChange={handleChange('symbol')}
                   required
-                  className={currentPrice ? 'border-green-300' : ''}
+                  className={cn(
+                    'text-xs lg:text-base',
+                    currentPrice ? 'border-green-300' : ''
+                  )}
                 />
                 {priceLoading && (
                   <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
@@ -375,10 +376,7 @@ export function TradeForm({
 
           {/* 핵심: 매매 당시 생각 저널링 */}
           <div className="space-y-2">
-            <Label
-              htmlFor="thoughts"
-              className="text-base font-semibold text-blue-700"
-            >
+            <Label htmlFor="thoughts" className="text-blue-700">
               매매 당시 생각
             </Label>
             <Textarea
@@ -386,7 +384,7 @@ export function TradeForm({
               placeholder="매매 결정을 내린 이유, 당시의 감정, 시장 상황 등을 자유롭게 기록해보세요"
               value={formData.thoughts}
               onChange={handleChange('thoughts')}
-              className="min-h-[120px]"
+              className={cn('min-h-[120px]', 'text-sm lg:text-base')}
             />
             <p className="text-xs text-gray-500">
               AI가 분석하여 감성 태그를 자동으로 생성합니다

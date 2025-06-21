@@ -50,7 +50,7 @@ export function TradeList({ trades, isLoading = false }: TradeListProps) {
     <section className="w-full max-w-4xl mx-auto space-y-6">
       <div className="mb-6">
         <h2 className="text-2xl font-bold mb-2">나의 매매 기록</h2>
-        <p className="text-gray-600">
+        <p className="text-gray-600 break-keep">
           총 {trades.length}건의 매매 기록 • AI가 분석한 감성 태그로 패턴을
           발견해보세요
         </p>
@@ -87,12 +87,12 @@ function TradeItem({ trade }: { trade: Trade }) {
   return (
     <AccordionItem value={trade.id}>
       <AccordionTrigger className="hover:no-underline">
-        <div className="flex items-center justify-between w-full pr-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between w-full pr-4 gap-2 sm:gap-0">
           <div className="flex items-center gap-3">
             <div
               className={cn(
                 'flex items-center justify-center',
-                'w-12 h-12',
+                'w-10 h-10 sm:w-12 sm:h-12',
                 'rounded-full',
                 isBuy ? 'bg-blue-100' : 'bg-green-100'
               )}
@@ -101,13 +101,13 @@ function TradeItem({ trade }: { trade: Trade }) {
             </div>
             <div className="text-left">
               <div className="font-medium">{trade.symbol}</div>
-              <div className="text-sm text-gray-500">
+              <div className="text-xs sm:text-sm text-gray-500">
                 {trade.date} • {trade.quantity}주
               </div>
             </div>
           </div>
-          <div className="text-right">
-            <div className="font-medium">
+          <div className="text-left sm:text-right">
+            <div className="text-sm sm:text-base font-medium">
               {isBuy ? (
                 <>
                   매수가: {currentMarketConfig.symbol}
@@ -126,7 +126,7 @@ function TradeItem({ trade }: { trade: Trade }) {
             {trade.profitLoss !== null && trade.profitRate !== null && (
               <div
                 className={cn(
-                  'text-sm',
+                  'text-xs sm:text-sm',
                   trade.profitLoss >= 0 ? 'text-green-600' : 'text-red-600'
                 )}
               >
@@ -140,14 +140,14 @@ function TradeItem({ trade }: { trade: Trade }) {
         </div>
       </AccordionTrigger>
       <AccordionContent>
-        <div className="space-y-4 p-4 bg-gray-50 rounded-lg">
+        <div className="space-y-4 p-3 sm:p-4 bg-gray-50 rounded-lg">
           {/* 매매 당시 생각 */}
           {trade.thoughts && (
             <div>
-              <h4 className="text-sm font-medium text-gray-700 mb-2">
+              <h4 className="text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
                 매매 당시 생각
               </h4>
-              <p className="text-sm text-gray-600 whitespace-pre-wrap">
+              <p className="text-xs sm:text-sm text-gray-600 whitespace-pre-wrap">
                 {trade.thoughts}
               </p>
             </div>
@@ -156,7 +156,7 @@ function TradeItem({ trade }: { trade: Trade }) {
           {/* AI 감성 태그 */}
           {trade.emotionTags && trade.emotionTags.length > 0 && (
             <div>
-              <h4 className="text-sm font-medium text-gray-700 mb-2">
+              <h4 className="text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
                 AI 감성 태그
               </h4>
               <div className="flex flex-wrap gap-1">
@@ -164,7 +164,7 @@ function TradeItem({ trade }: { trade: Trade }) {
                   <Badge
                     key={tag}
                     variant="secondary"
-                    className="bg-blue-100 text-blue-800"
+                    className="text-xs bg-blue-100 text-blue-800"
                   >
                     {tag}
                   </Badge>
@@ -176,23 +176,23 @@ function TradeItem({ trade }: { trade: Trade }) {
           {/* 현재가 정보 (매수 시에만) */}
           {isBuy && trade.currentPrice && (
             <div>
-              <h4 className="text-sm font-medium text-gray-700 mb-2">
+              <h4 className="text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
                 현재가 정보
               </h4>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-2 sm:gap-4">
                 <div>
-                  <p className="text-sm text-gray-500">현재가</p>
-                  <p className="font-medium">
+                  <p className="text-xs sm:text-sm text-gray-500">현재가</p>
+                  <p className="text-sm sm:text-base font-medium">
                     {currentMarketConfig.symbol}
                     {trade.currentPrice.toLocaleString()}
                   </p>
                 </div>
                 {trade.profitLoss !== null && trade.profitRate !== null && (
                   <div>
-                    <p className="text-sm text-gray-500">평가손익</p>
+                    <p className="text-xs sm:text-sm text-gray-500">평가손익</p>
                     <p
                       className={cn(
-                        'font-medium',
+                        'text-sm sm:text-base font-medium',
                         trade.profitLoss >= 0
                           ? 'text-green-600'
                           : 'text-red-600'
@@ -222,18 +222,22 @@ function DateGroupHeader({ group }: { group: GroupedTrade }) {
   const profitByUSD = calculateProfitByCurrency(group.trades, 'USD');
 
   return (
-    <div className="flex justify-between items-center w-full">
-      <div className="flex items-center gap-3">
-        <span className="text-lg font-semibold">{group.dateFormatted}</span>
-        <span className="text-sm text-gray-500">({group.dayOfWeek})</span>
+    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center w-full gap-2 sm:gap-0">
+      <div className="flex items-center gap-2 sm:gap-3">
+        <span className="text-base sm:text-lg font-semibold">
+          {group.dateFormatted}
+        </span>
+        <span className="text-xs sm:text-sm text-gray-500">
+          ({group.dayOfWeek})
+        </span>
         <Badge variant="outline" className="text-xs">
           {group.trades.length}건
         </Badge>
       </div>
 
-      <div className="flex items-center gap-4 text-sm">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4 text-xs sm:text-sm">
         {/* 통화별 거래대금 표시 */}
-        <div className="text-gray-600 space-x-2">
+        <div className="text-gray-600 flex flex-wrap gap-x-2">
           {totalByKRW > 0 && (
             <span>KRW: {formatCurrency(totalByKRW, 'KRW')}</span>
           )}
@@ -243,7 +247,7 @@ function DateGroupHeader({ group }: { group: GroupedTrade }) {
         </div>
 
         {/* 통화별 수익/손실 표시 */}
-        <div className="space-x-2">
+        <div className="flex flex-wrap gap-x-2">
           {profitByKRW !== 0 && (
             <span
               className={cn(

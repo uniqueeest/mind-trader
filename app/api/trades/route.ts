@@ -5,6 +5,43 @@ import { authOptions } from '@/lib/auth';
 import { TradeType, Market, Currency } from '@prisma/client';
 import { enrichTradeWithMarketData } from '@/lib/kis-api';
 
+// 현재 프로젝트의 감정 태그 목록
+const EMOTION_TAGS = [
+  // 감정
+  'FOMO',
+  '공포',
+  '탐욕',
+  '희망적',
+  '감정적',
+  '절망적',
+  '확신',
+  // 분석방법
+  '기술적분석',
+  '기본적분석',
+  '가치투자',
+  '모멘텀',
+  '따라하기',
+  // 시장상황
+  '뉴스반응',
+  '시장분위기',
+  '동조효과',
+  '급등급락',
+  '박스권',
+  // 투자목적
+  '수익실현',
+  '손절매',
+  '목표달성',
+  '포트폴리오조정',
+  '세금절약',
+  // 테마
+  'AI테마',
+  '메타버스',
+  'ESG',
+  '2차전지',
+  '바이오',
+  '반도체',
+];
+
 // AI 분석 함수 (동기적 실행)
 async function performAIAnalysis(
   thoughts: string
@@ -12,43 +49,6 @@ async function performAIAnalysis(
   try {
     const { GoogleGenerativeAI } = await import('@google/generative-ai');
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
-
-    // 현재 프로젝트의 감정 태그 목록
-    const EMOTION_TAGS = [
-      // 감정
-      'FOMO',
-      '공포',
-      '탐욕',
-      '희망적',
-      '감정적',
-      '절망적',
-      '확신',
-      // 분석방법
-      '기술적분석',
-      '기본적분석',
-      '가치투자',
-      '모멘텀',
-      '따라하기',
-      // 시장상황
-      '뉴스반응',
-      '시장분위기',
-      '동조효과',
-      '급등급락',
-      '박스권',
-      // 투자목적
-      '수익실현',
-      '손절매',
-      '목표달성',
-      '포트폴리오조정',
-      '세금절약',
-      // 테마
-      'AI테마',
-      '메타버스',
-      'ESG',
-      '2차전지',
-      '바이오',
-      '반도체',
-    ];
 
     const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
@@ -115,7 +115,14 @@ export async function GET(request: NextRequest) {
       emotionTags: trade.emotionTags || [], // PostgreSQL 배열 타입, null 체크만
     }));
 
-    return NextResponse.json({ trades: transformedTrades });
+    const data = { trades: transformedTrades };
+
+    const response = NextResponse.json(data);
+
+    // 브라우저 캐시 설정 (1분)
+    response.headers.set('Cache-Control', 'public, max-age=60');
+
+    return response;
   } catch (error) {
     console.error('매매 기록 조회 실패:', error);
     return NextResponse.json(
